@@ -34,9 +34,13 @@ public class MarketplaceService {
             .filter(p -> matchesQuery(p, q))
             .forEach(results::add);
 
-        // Creator packages from DB
+        // Creator packages from DB — skip IDs already covered by official catalog
+        Set<String> officialIds = OFFICIAL_CATALOG.stream()
+            .map(DnaPackageInfo::getId)
+            .collect(java.util.stream.Collectors.toSet());
         List<PackageVersionEntity> creatorPkgs = packageVersionRepo.findByStatus(PackageStatus.published);
         creatorPkgs.stream()
+            .filter(p -> !officialIds.contains(p.getPackageId()))
             .filter(p -> matchesCreatorPackage(p, q))
             .map(this::toPackageInfo)
             .forEach(results::add);
