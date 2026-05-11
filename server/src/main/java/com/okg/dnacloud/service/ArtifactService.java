@@ -86,7 +86,7 @@ public class ArtifactService {
                 .payer(verifyResult.getPayer())
                 .amount(verifyResult.getAmount())
                 .currency("USDC")
-                .network("solana-devnet")
+                .network(pkg.getPrice().getNetwork())
                 .verifiedAt(Instant.now().toString())
                 .settlementRef(settlementRef)
                 .build();
@@ -122,7 +122,7 @@ public class ArtifactService {
                 .payer("local-test-buyer")
                 .amount(parseAmountToAtomic(pkg.getPrice().getAmount()) + "")
                 .currency("USDC")
-                .network("solana-devnet")
+                .network(pkg.getPrice().getNetwork())
                 .verifiedAt(Instant.now().toString())
                 .settlementRef("local-test-settlement-" + testTxHash)
                 .build();
@@ -152,7 +152,7 @@ public class ArtifactService {
             Map<String, Object> map = objectMapper.readValue(json, Map.class);
             String txHash = (String) map.get("txHash");
             String nonce = (String) map.getOrDefault("nonce", "");
-            String network = (String) map.getOrDefault("network", "solana-devnet");
+            String network = (String) map.getOrDefault("network", "solana");
             String payer = (String) map.getOrDefault("payer", "unknown");
             if (txHash == null || txHash.isBlank()) return null;
             return new SolanaPaymentCredential(txHash, nonce, network, payer);

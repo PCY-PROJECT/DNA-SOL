@@ -135,12 +135,12 @@ public class CreatorService {
         Map<String, Object> price = getNestedMap(manifest, "price");
         String priceAmount = priceOverride != null ? priceOverride : (String) price.getOrDefault("amount", "1.00");
         String priceCurrency = currencyOverride != null ? currencyOverride : (String) price.getOrDefault("currency", "USDC");
-        String priceNetwork = (String) price.getOrDefault("network", "solana-devnet");
+        String priceNetwork = (String) price.getOrDefault("network", "solana");
 
         // Payout
         Map<String, Object> payout = getNestedMap(manifest, "payout");
         String payoutAddress = (String) payout.getOrDefault("address", session.getPayoutAddress());
-        String payoutNetwork = (String) payout.getOrDefault("network", "solana-devnet");
+        String payoutNetwork = (String) payout.getOrDefault("network", "solana");
         String payoutCurrency = (String) payout.getOrDefault("currency", "USDC");
 
         // Creator
@@ -278,7 +278,7 @@ public class CreatorService {
             .mapToLong(RevenueEntryEntity::getCreatorAmount).sum();
 
         String currency = entries.isEmpty() ? "USDC" : entries.get(0).getCurrency();
-        String network = entries.isEmpty() ? "solana-devnet" : entries.get(0).getNetwork();
+        String network = entries.isEmpty() ? "solana" : entries.get(0).getNetwork();
         String payoutAddr = entries.isEmpty() ? walletAddress : entries.get(0).getPayoutAddress();
 
         List<Map<String, Object>> entryList = entries.stream().map(e -> Map.<String, Object>of(

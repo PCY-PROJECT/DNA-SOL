@@ -28,13 +28,13 @@ import java.util.Map;
 @Component
 public class SolanaPaymentVerifier {
 
-    @Value("${solana.rpc-url:https://api.devnet.solana.com}")
+    @Value("${solana.rpc-url:https://api.mainnet-beta.solana.com}")
     private String rpcUrl;
 
     @Value("${dnacloud.merchant-address:AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV}")
     private String merchantAddress;
 
-    @Value("${solana.usdc-mint:4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU}")
+    @Value("${solana.usdc-mint:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v}")
     private String usdcMint;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -157,7 +157,7 @@ public class SolanaPaymentVerifier {
                     .payer(payer)
                     .amount(String.valueOf(receivedAtomic))
                     .currency("USDC")
-                    .network("solana-devnet")
+                    .network("solana")
                     .build();
 
         } catch (Exception e) {

@@ -40,10 +40,10 @@ public class MarketplaceController {
     @Value("${dnacloud.merchant-address:AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV}")
     private String merchantAddress;
 
-    @Value("${solana.usdc-mint:4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU}")
+    @Value("${solana.usdc-mint:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v}")
     private String usdcMint;
 
-    @Value("${solana.network:solana-devnet}")
+    @Value("${solana.network:solana}")
     private String solanaNetwork;
 
     private static final java.util.regex.Pattern SAFE_ID = java.util.regex.Pattern.compile("^[a-z0-9][a-z0-9\\-]{0,63}$");

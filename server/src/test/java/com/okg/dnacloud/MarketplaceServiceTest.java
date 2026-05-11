@@ -39,12 +39,12 @@ class MarketplaceServiceTest {
         DnaPackageInfo pkg = marketplaceService.getById("trading-master-dna");
         assertNotNull(pkg);
         assertEquals("Trading Master DNA", pkg.getName());
-        assertEquals("1.0.0", pkg.getVersion());
+        assertEquals("1.0.1", pkg.getVersion());
         assertEquals("official-capability-pack", pkg.getPackageType());
         assertFalse(pkg.getCapabilities().isEmpty());
         assertNotNull(pkg.getPrice());
         assertEquals("USDC", pkg.getPrice().getCurrency());
-        assertEquals("solana-devnet", pkg.getPrice().getNetwork());
+        assertEquals("solana", pkg.getPrice().getNetwork());
     }
 
     @Test

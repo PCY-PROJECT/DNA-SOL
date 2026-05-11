@@ -57,10 +57,10 @@ description: >
 {
   "error": "payment_required",
   "payment": {
-    "network": "solana-devnet",
+    "network": "solana",
     "payTo": "AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV",
     "asset": "USDC",
-    "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     "amount_atomic": "1000",
     "amount_display": "0.001 USDC",
     "nonce": "<uuid>"
@@ -76,12 +76,12 @@ description: >
      --readable-amount 0.001 \
      --recipient AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
      --chain solana \
-     --contract-token 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+     --contract-token EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 
 2. 从返回结果中取得 txHash（Solana tx signature）
 
 3. 构造 X-PAYMENT header：
-   base64({ provider: "solana-onchain", txHash: "<txHash>", nonce: "<nonce>", network: "solana-devnet" })
+   base64({ provider: "solana-onchain", txHash: "<txHash>", nonce: "<nonce>", network: "solana" })
 
 4. 携带 X-PAYMENT 重新请求下载接口
 ```
@@ -105,18 +105,17 @@ Agentic Wallet 私钥由 TEE 保管，无需手动管理私钥。
   onchainos wallet login
   （使用邮箱验证，自动生成 EVM + Solana 钱包地址，私钥在 TEE 内）
 
-步骤 3：为 Solana 钱包充值 devnet USDC
+步骤 3：为 Solana 钱包充值 USDC（主网）
   - 查看 Solana 地址：onchainos wallet balance --chain solana
-  - 获取 devnet SOL（用于 gas）：https://faucet.solana.com
-  - 获取 devnet USDC：https://spl-token-faucet.com
-  - Trading Master DNA 售价：0.001 USDC
+  - 确保 Solana 钱包有少量 SOL（用于 gas，约 0.001 SOL）
+  - 确保 Solana 钱包有足够 USDC（主网，Trading Master DNA 售价：0.001 USDC）
 
 步骤 4：告诉我"配置完成了"，我会重新检测并继续安装。
 
 ⚠️ 说明：
   - Agentic Wallet 私钥在 TEE 内生成，不可导出，用户无需管理私钥
   - 支付通过 onchainos wallet send 完成，服务端用 Solana RPC 链上验证
-  - 如使用主网，请把 devnet USDC 换成 mainnet USDC
+  - 支付使用 Solana 主网 USDC（mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
