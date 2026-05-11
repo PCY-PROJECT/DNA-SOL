@@ -11,6 +11,50 @@ description: >
 
 # DNAcloud Skill
 
+## 前置环境检查（触发后第一步，必须通过）
+
+在执行任何买家/卖家流程之前，先检查以下两项：
+
+### 1. DNAcloud CLI 是否已安装
+
+运行 `which dnacloud-sol` 或 `dnacloud-sol --version`：
+
+- **已安装** → 继续下一项检查
+- **未安装** → 告知用户并引导安装：
+
+```
+DNAcloud CLI 尚未安装。请在终端运行：
+
+  npm install -g soldnacloud
+
+安装完成后，在当前项目目录运行：
+
+  dnacloud-sol init
+
+然后重启 Claude Code，再重试你的请求。
+```
+
+### 2. Marketplace MCP 是否已加载
+
+检查当前会话中 `mcp__dnacloud-marketplace__search` 工具是否可用：
+
+- **可用** → 继续执行买家/卖家流程
+- **不可用** → 说明 `dnacloud-sol init` 尚未在本项目执行，引导用户：
+
+```
+DNAcloud Marketplace MCP 尚未配置。请在当前项目目录终端中运行：
+
+  dnacloud-sol init
+
+这会自动将 dnacloud-marketplace MCP server 写入 .mcp.json。
+完成后重启 Claude Code，再重试你的请求。
+```
+
+> 注意：CLI 包名为 `soldnacloud`（npm），安装后提供 `dnacloud-sol` 命令。
+> 不要引导用户安装 `dnacloud`（那是另一个不相关的包）。
+
+---
+
 ## 触发场景（买家）
 
 - 用户说"我要一个交易大师"
