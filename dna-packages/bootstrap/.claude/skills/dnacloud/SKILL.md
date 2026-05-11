@@ -46,7 +46,7 @@ description: >
 8. 展示安装预览 → 列出将要安装的所有文件和修改
 9. 用户确认安装 → 等待最终确认
 10. 执行安装 → 调用 dnacloud-installer agent
-11. 验证 → 运行 dnacloud verify
+11. 验证 → 运行 dnacloud-sol verify
 12. 完成 → 告知用户新能力已可用
 ```
 
@@ -138,7 +138,7 @@ Agentic Wallet 私钥由 TEE 保管，无需手动管理私钥。
 卖家引导提示：
 - 提醒 `objective` 只能描述"安装什么能力"，不能承诺盈利
 - 提醒 MCP 配置中不能写入真实 API key，只用 `${ENV_VAR}` 占位
-- 上传前必须先 validate（`dnacloud validate <zip>`）
+- 上传前必须先 validate（`dnacloud-sol validate <zip>`）
 
 ## 展示格式
 

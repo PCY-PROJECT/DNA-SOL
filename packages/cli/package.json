@@ -1,10 +1,10 @@
 {
   "name": "soldnacloud",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "type": "module",
   "description": "DNAcloud CLI — install expert DNA capabilities into Claude Code",
   "bin": {
-    "dnacloud": "./dist/index.js"
+    "dnacloud-sol": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [

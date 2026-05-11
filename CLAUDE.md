@@ -47,7 +47,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home java -jar 
 |---|---|---|
 | `@dnacloud/schema` | `packages/schema` | DNA manifest 的 TypeScript 类型 + JSON Schema 验证（`DnaManifest`、`InstallPlan`） |
 | `@dnacloud/validator` | `packages/validator` | 包结构校验（manifest 合规、签名、路径安全、密钥扫描） |
-| `@dnacloud/cli` | `packages/cli` | `dnacloud` CLI 主体；`src/commands/` 对应各子命令；`src/installer/` 安装/验证/回滚；`src/marketplace/` 与服务端交互 |
+| `@dnacloud/cli` | `packages/cli` | `dnacloud-sol` CLI 主体；`src/commands/` 对应各子命令；`src/installer/` 安装/验证/回滚；`src/marketplace/` 与服务端交互 |
 | `@dnacloud/mcp-server` | `packages/mcp-server` | 向 Claude Code 暴露 `search_dna_packages` 等 MCP 工具 |
 
 **构建依赖顺序**：`schema` → `validator` → `cli` → `mcp-server`（上游改动需重新构建下游）。
@@ -89,7 +89,7 @@ Phase 1 交付两个正式产品：
 ```
 1. DNA schema / validator
 2. DNAcloud Bootstrap plugin
-3. dnacloud CLI
+3. dnacloud-sol CLI (soldnacloud)
 4. Marketplace API
 5. OKX x402 payment middleware
 6. Marketplace client + payment client
@@ -108,7 +108,7 @@ Phase 1 交付两个正式产品：
 | 组件 | 职责 |
 |---|---|
 | DNAcloud Bootstrap Plugin | Skills/Agents/Commands/Hooks 写入当前 Claude Code 项目 |
-| dnacloud CLI | `init` / `install` / `verify` / `status` / `rollback` |
+| dnacloud-sol CLI | `init` / `install` / `verify` / `status` / `rollback` |
 | dnacloud MCP Server | 为 Claude Code 提供 marketplace 搜索工具 |
 | Package Installer | 解包、校验签名/hash、生成 install preview、写入文件 |
 | Verifier | 检查各组件完整性，输出 `active` 状态 |
@@ -213,7 +213,7 @@ GET /v1/dna/{id}/versions/{ver}/artifact
 
 ---
 
-## `dnacloud verify` 验收标准
+## `dnacloud-sol verify` 验收标准
 
 必须检查（能力完整性，不检查收益）：
 
@@ -240,10 +240,10 @@ CLAUDE.md patch applied、lock file updated、rollback snapshot exists
 
 ```
 全新 Claude Code 项目
-→ dnacloud init
+→ dnacloud-sol init
 → 用户说"我要一个交易大师"
 → OKX x402 真实购买 Trading Master DNA
-→ 安装完成 → dnacloud verify → active
+→ 安装完成 → dnacloud-sol verify → active
 → /trade-plan、/risk-check、/order-preview 可用
 → 缺少真实 MCP 时提示配置
 → 配置真实 MCP 后可进入下单授权流程
@@ -259,7 +259,7 @@ Trading Master DNA v1.0.0 官方能力包已安装到此项目。
 **触发词**：交易计划、市场分析、下单、仓位管理、风控检查、复盘
 
 **重要**：Trading Master DNA 不保证盈利。所有分析需配置真实 MCP 数据源。  
-运行 `dnacloud verify trading-master-dna` 查看配置状态。
+运行 `dnacloud-sol verify trading-master-dna` 查看配置状态。
 
 ---
 
@@ -270,11 +270,11 @@ v0.6 在 v0.5 购买/安装主流程上新增三个闭环：
 ### 新增 CLI 命令
 
 ```bash
-dnacloud validate <package.zip>          # 本地校验包结构
-dnacloud upload <package.zip> --payout-address 0x...   # 上传到市场
-dnacloud creator earnings <wallet>       # 查看收益
-dnacloud creator payouts <wallet>        # 查看结算记录
-dnacloud creator packages <wallet>       # 查看已上传包
+dnacloud-sol validate <package.zip>          # 本地校验包结构
+dnacloud-sol upload <package.zip> --payout-address 0x...   # 上传到市场
+dnacloud-sol creator earnings <wallet>       # 查看收益
+dnacloud-sol creator payouts <wallet>        # 查看结算记录
+dnacloud-sol creator packages <wallet>       # 查看已上传包
 ```
 
 ### 新增 Claude Code 命令

@@ -22,7 +22,7 @@ DNAcloud Skill  →  search Marketplace API
                 →  present: Trading Master DNA · 0.001 USDC · Score 98/100
 User confirms
 
-dnacloud CLI    →  GET /artifact  →  402 Payment Required (Solana USDC)
+dnacloud-sol CLI →  GET /artifact  →  402 Payment Required (Solana USDC)
                 →  onchainos wallet send --chain solana --amt 1000 --to AY5669...
                 →  txHash: 4mpR5QQg...
                 →  retry with X-PAYMENT credential
@@ -32,7 +32,7 @@ dnacloud CLI    →  GET /artifact  →  402 Payment Required (Solana USDC)
 Installer       →  verify signature + SHA256
                 →  show install preview
                 →  write: Skills / Agents / Commands / MCP / Hooks / Rules
-                →  dnacloud verify → active ✓
+                →  dnacloud-sol verify → active ✓
 
 New commands available: /trade-plan  /risk-check  /order-preview
 ```
@@ -57,13 +57,13 @@ New commands available: /trade-plan  /risk-check  /order-preview
 ```
 ┌─────────────────── Claude Code (user's project) ──────────────────┐
 │                                                                     │
-│  DNAcloud Bootstrap (installed via dnacloud init)                  │
+│  DNAcloud Bootstrap (installed via dnacloud-sol init)                  │
 │  ├── Skill: dnacloud          ← triggered by natural language      │
 │  ├── Agent: market-researcher ← searches Marketplace API           │
 │  ├── Agent: installer         ← unpacks + writes files             │
 │  └── Commands: /dna-install  /dna-upload  /dna-earnings  …        │
 │                                                                     │
-│  dnacloud CLI   ──── x402 payment flow ────────────────────────►  │
+│  dnacloud-sol CLI ──── x402 payment flow ────────────────────────►  │
 │  dnacloud MCP Server  (search_dna_packages tool)                   │
 └───────────────────────────────┬────────────────────────────────────┘
                                 │ HTTP (REST)
@@ -115,7 +115,7 @@ DNA-SOL/
 ├── packages/                    # TypeScript (pnpm workspace)
 │   ├── schema/                  # DnaManifest + InstallPlan types
 │   ├── validator/               # local package structure validator
-│   ├── cli/                     # dnacloud CLI (Node 18+)
+│   ├── cli/                     # dnacloud-sol CLI (Node 18+)
 │   │   ├── src/commands/        # init / install / verify / status / rollback / upload / creator
 │   │   ├── src/installer/       # Installer · Verifier · Rollback
 │   │   └── src/marketplace/     # MarketplaceClient · PaymentClient (x402 Solana)
@@ -130,7 +130,7 @@ DNA-SOL/
 │       └── entity/              # PackageVersion · PaymentReceipt · RevenueEntry · PayoutRecord
 │
 └── dna-packages/
-    ├── bootstrap/               # DNAcloud Bootstrap — written to user's project by dnacloud init
+    ├── bootstrap/               # DNAcloud Bootstrap — written to user's project by dnacloud-sol init
     │   └── .claude/
     │       ├── skills/dnacloud/ # main DNAcloud Skill (search · pay · install)
     │       ├── agents/          # market-researcher · installer
@@ -202,7 +202,7 @@ Server starts on `http://localhost:8080` with H2 persistent DB at `./data/dnaclo
 
 ```bash
 # from any Claude Code project directory
-dnacloud init
+dnacloud-sol init
 ```
 
 This writes the DNAcloud Bootstrap into `.claude/` — Skills, Agents, and Commands are immediately available.
@@ -216,7 +216,7 @@ You:  "我要一个交易大师"
 
 Option B — direct command:
 ```bash
-dnacloud install trading-master-dna
+dnacloud-sol install trading-master-dna
 ```
 
 DNAcloud will prompt for OKX OnchainOS wallet authorization, show the install preview, and complete the Solana USDC payment automatically.
@@ -224,8 +224,8 @@ DNAcloud will prompt for OKX OnchainOS wallet authorization, show the install pr
 ### 6. Verify installation
 
 ```bash
-dnacloud verify trading-master-dna
-dnacloud status
+dnacloud-sol verify trading-master-dna
+dnacloud-sol status
 ```
 
 ---
@@ -243,7 +243,7 @@ onchainos wallet addresses
 onchainos wallet balance --chain solana
 ```
 
-The payment flow is fully automated — `dnacloud install` handles the `onchainos wallet send` call, txHash capture, and X-PAYMENT credential construction without manual steps.
+The payment flow is fully automated — `dnacloud-sol install` handles the `onchainos wallet send` call, txHash capture, and X-PAYMENT credential construction without manual steps.
 
 ---
 
@@ -270,14 +270,14 @@ Publish your own DNA packages and earn USDC on every install.
 
 ```bash
 # 1. Validate your package locally
-dnacloud validate ./my-dna-pack.zip
+dnacloud-sol validate ./my-dna-pack.zip
 
 # 2. Upload via Claude Code (guided flow)
 /dna-upload
 
 # 3. Track earnings
 /dna-earnings
-dnacloud creator earnings <your-solana-address>
+dnacloud-sol creator earnings <your-solana-address>
 ```
 
 **Revenue flow:** Buyer pays USDC via x402 → DNAcloud platform receives → payout worker settles 90% to creator's Solana address every hour.
