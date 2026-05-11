@@ -1,36 +1,49 @@
+import type { SolanaPaymentRequirement } from './MarketplaceClient.js';
+
 /**
- * Payment is handled by the OKX OnchainOS Payment Skill installed in Claude Code.
+ * Payment for DNAcloud packages uses OKX OnchainOS Agentic Wallet (Solana USDC).
  *
- * When the server returns HTTP 402 + X-PAYMENT-REQUIREMENT, the OKX Payment Skill
- * (running inside the user's Claude Code environment) automatically:
- *   1. Detects the 402 response
- *   2. Signs EIP-3009 TransferWithAuthorization via the user's Agentic Wallet (TEE)
- *   3. Retries the request with X-PAYMENT header
+ * Flow inside Claude Code:
+ *   1. Skill detects 402 from marketplace server
+ *   2. Skill calls `onchainos wallet send` to transfer USDC to merchant address
+ *   3. Gets back txHash (Solana tx signature)
+ *   4. Builds X-PAYMENT credential with txHash
+ *   5. Retries download request with X-PAYMENT header
+ *   6. Server verifies on-chain, returns DNA artifact
  *
- * This file is kept for CLI standalone use only (dnacloud install outside Claude Code).
- * In that case the user must provide BUYER_WALLET_PRIVATE_KEY and use an EIP-3009
- * compatible wallet — but the primary flow is via OKX Payment Skill.
+ * CLI standalone mode:
+ *   User manually runs `onchainos wallet send`, then provides txHash when prompted.
  */
 
-export function isPaymentSkillFlow(): boolean {
-  // When running inside Claude Code with OKX Payment Skill, payment is automatic.
-  // CLI standalone mode requires wallet config.
-  return process.env.OKX_PAYMENT_SKILL === 'true';
-}
+export function buildOnchainOsCommand(req: SolanaPaymentRequirement): string {
+  // readableAmount = amount_atomic / 10^6 (USDC has 6 decimals)
+  const readableAmount = (parseInt(req.amount_atomic, 10) / 1_000_000).toFixed(6).replace(/\.?0+$/, '');
 
-export function requiresWalletConfig(): boolean {
-  return !process.env.BUYER_WALLET_PRIVATE_KEY && !isPaymentSkillFlow();
-}
-
-export function getWalletConfigError(): string {
   return [
-    '❌ 支付方式未配置',
+    'onchainos wallet send',
+    `  --readable-amount ${readableAmount}`,
+    `  --recipient ${req.payTo}`,
+    `  --chain solana`,
+    `  --contract-token ${req.mint}`,
+  ].join(' \\\n');
+}
+
+export function getPaymentConfigError(req: SolanaPaymentRequirement): string {
+  return [
+    '❌ 需要完成 Solana USDC 支付',
     '',
-    '在 Claude Code 中使用（推荐）：',
-    '  安装 OKX OnchainOS Payment Skill，Skill 会自动处理支付',
-    '  参考：https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/payment-use-buyer',
+    '支付方式 A — OKX OnchainOS Agentic Wallet（推荐，TEE 钱包）：',
     '',
-    '在 CLI 中独立使用：',
-    '  BUYER_WALLET_PRIVATE_KEY=0x...  （需要 XLayer 上的 USDT 余额）',
+    `  ${buildOnchainOsCommand(req)}`,
+    '',
+    '  返回 txHash 后，在此处输入即可完成购买。',
+    '',
+    '支付方式 B — 任意 Solana 钱包手动转账：',
+    `  向地址 ${req.payTo}`,
+    `  转账 ${req.amount_display}（USDC, ${req.network}）`,
+    `  Mint: ${req.mint}`,
+    '',
+    '⚠️  使用测试网（devnet）时请确保使用 devnet USDC。',
+    '    可从 https://spl-token-faucet.com 获取 devnet USDC。',
   ].join('\n');
 }

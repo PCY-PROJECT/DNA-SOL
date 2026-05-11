@@ -41,6 +41,13 @@ public class PaymentReceiptEntity {
     @Column(name = "platform_receiver_address")
     private String platformReceiverAddress;
 
+    @Column(name = "payment_provider")
+    private String paymentProvider; // e.g. "solana-onchain"
+
+    @Column(name = "receipt_json", columnDefinition = "TEXT")
+    private String receiptJson;
+
+    // Legacy field kept for backward compatibility (nullable)
     @Column(name = "okx_receipt_json", columnDefinition = "TEXT")
     private String okxReceiptJson;
 

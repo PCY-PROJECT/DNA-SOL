@@ -4,6 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 开发命令
+
+```bash
+# 安装依赖
+pnpm install
+
+# 构建所有 TypeScript 包（顺序：schema → validator → cli → mcp-server）
+pnpm build
+
+# 单包构建（在仓库根目录运行）
+pnpm --filter @dnacloud/schema build
+pnpm --filter @dnacloud/cli build
+
+# 运行所有测试
+pnpm test
+
+# 运行单包测试
+pnpm --filter @dnacloud/validator test
+
+# Lint
+pnpm lint
+
+# 监视模式开发（并行）
+pnpm dev
+```
+
+```bash
+# Java server（macOS 需指定 JAVA_HOME）
+cd server
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home mvn package -DskipTests
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
+```
+
+**首次设置**：复制 `cp .env.example .env` 并填写 `OKX_API_KEY`、`DNACLOUD_PAYMENT_ADDRESS`、`DNACLOUD_SIGNING_KEY`。
+
+---
+
+## TypeScript 包结构
+
+| 包 | 路径 | 职责 |
+|---|---|---|
+| `@dnacloud/schema` | `packages/schema` | DNA manifest 的 TypeScript 类型 + JSON Schema 验证（`DnaManifest`、`InstallPlan`） |
+| `@dnacloud/validator` | `packages/validator` | 包结构校验（manifest 合规、签名、路径安全、密钥扫描） |
+| `@dnacloud/cli` | `packages/cli` | `dnacloud` CLI 主体；`src/commands/` 对应各子命令；`src/installer/` 安装/验证/回滚；`src/marketplace/` 与服务端交互 |
+| `@dnacloud/mcp-server` | `packages/mcp-server` | 向 Claude Code 暴露 `search_dna_packages` 等 MCP 工具 |
+
+**构建依赖顺序**：`schema` → `validator` → `cli` → `mcp-server`（上游改动需重新构建下游）。
+
+---
+
+## 关键文件位置
+
+| 目的 | 文件 |
+|---|---|
+| CLI 命令入口 | `packages/cli/src/index.ts` |
+| 安装逻辑 | `packages/cli/src/installer/Installer.ts` |
+| 验证逻辑 | `packages/cli/src/installer/Verifier.ts` |
+| OKX x402 签名 | `packages/cli/src/marketplace/PaymentClient.ts` |
+| Marketplace API 控制器 | `server/src/main/java/com/okg/dnacloud/controller/MarketplaceController.java` |
+| 创作者 API 控制器 | `server/src/main/java/com/okg/dnacloud/controller/CreatorController.java` |
+| OKX x402 服务端验证 | `server/src/main/java/com/okg/dnacloud/payment/OkxX402Client.java` |
+| Trading Master 包定义 | `dna-packages/trading-master-dna/manifest.json` |
+| 安装计划 | `dna-packages/trading-master-dna/install-plan.json` |
+| Bootstrap Skill | `dna-packages/bootstrap/.claude/skills/dnacloud/SKILL.md` |
+
+---
+
 ## 项目概述
 
 **DNAcloud for Claude Code** — 让用户用自然语言把 Claude Code 初始化成某类专家 Agent。
@@ -231,15 +298,3 @@ dnacloud creator packages <wallet>       # 查看已上传包
 
 `application.yml` 已配置 H2 持久化，数据保存在 `./data/dnacloud.mv.db`。
 
-### 构建命令
-
-```bash
-# Java server（需指定 JAVA_HOME）
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home mvn package -DskipTests
-
-# 启动 server
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
-
-# TypeScript packages
-pnpm -r build
-```

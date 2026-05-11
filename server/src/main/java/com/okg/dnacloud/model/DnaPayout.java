@@ -7,7 +7,7 @@ import lombok.Data;
 @Builder
 public class DnaPayout {
     private String address;   // creator payout address
-    private String currency;  // e.g. USDT
-    private String network;   // e.g. eip155:196
-    private String asset;     // USDT token contract address on the network
+    private String currency;  // e.g. USDC
+    private String network;   // e.g. solana-devnet
+    private String asset;     // token mint address on the network
 }

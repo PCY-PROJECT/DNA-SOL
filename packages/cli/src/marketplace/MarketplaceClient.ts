@@ -4,28 +4,17 @@ export interface MarketplaceClientConfig {
   baseUrl: string;
 }
 
-// Standard x402 PaymentRequirement (from X-PAYMENT-REQUIREMENT header)
-export interface PaymentRequirement {
-  scheme: string;
-  network: string;
-  maxAmountRequired: string;
-  resource: string;
-  description: string;
-  mimeType: string;
-  payTo: string;
-  maxTimeoutSeconds: number;
-  asset: string;
-  extra?: {
-    name?: string;
-    version?: string;
-    [key: string]: unknown;
-  };
-}
-
-export interface X402Response {
-  x402Version: number;
-  accepts: PaymentRequirement[];
-  error?: string;
+/** Solana payment requirement returned in HTTP 402 response body. */
+export interface SolanaPaymentRequirement {
+  network: string;         // e.g. "solana-devnet"
+  chain: string;           // "solana"
+  payTo: string;           // merchant Solana address
+  asset: string;           // "USDC"
+  mint: string;            // USDC mint address
+  amount_atomic: string;   // atomic units (6 decimals), e.g. "1000"
+  amount_display: string;  // e.g. "0.001 USDC"
+  nonce: string;           // correlation ID
+  expires_at: string;      // ISO timestamp
 }
 
 export class MarketplaceClient {
@@ -34,9 +23,7 @@ export class MarketplaceClient {
   async search(query: string): Promise<DnaSearchResult[]> {
     const url = `${this.config.baseUrl}/v1/dna/search?q=${encodeURIComponent(query)}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`Marketplace search failed: ${res.status} ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Marketplace search failed: ${res.status} ${res.statusText}`);
     return res.json() as Promise<DnaSearchResult[]>;
   }
 
@@ -49,28 +36,23 @@ export class MarketplaceClient {
   }
 
   /**
-   * First call — no payment header.
-   * Returns the x402 requirement from the server's 402 response.
+   * First call without payment. Returns either the 402 payment requirement
+   * (Solana USDC) or the artifact data if the package is free.
    */
   async requestArtifact(
     packageId: string,
     version: string
-  ): Promise<{ type: 'payment_required'; requirement: PaymentRequirement }
-            | { type: 'success'; data: ArtifactData }> {
+  ): Promise<
+    | { type: 'payment_required'; requirement: SolanaPaymentRequirement }
+    | { type: 'success'; data: ArtifactData }
+  > {
     const url = `${this.config.baseUrl}/v1/dna/${packageId}/versions/${version}/artifact`;
     const res = await fetch(url);
 
     if (res.status === 402) {
-      const requirementHeader = res.headers.get('X-PAYMENT-REQUIREMENT');
-      if (!requirementHeader) {
-        throw new Error('Server returned 402 but missing X-PAYMENT-REQUIREMENT header');
-      }
-      const x402: X402Response = JSON.parse(
-        Buffer.from(requirementHeader, 'base64').toString('utf8')
-      );
-      const requirement = x402.accepts?.[0];
-      if (!requirement) throw new Error('No accepted payment scheme in 402 response');
-      return { type: 'payment_required', requirement };
+      const body = await res.json() as { error: string; payment: SolanaPaymentRequirement };
+      if (!body.payment) throw new Error('Server returned 402 but missing payment requirement');
+      return { type: 'payment_required', requirement: body.payment };
     }
 
     if (!res.ok) {
@@ -81,16 +63,17 @@ export class MarketplaceClient {
   }
 
   /**
-   * Retry with signed X-PAYMENT header after signing the EIP-3009 authorization.
+   * Retry with X-PAYMENT credential after the Solana tx is submitted.
+   * credential is base64({ provider, txHash, nonce, network, payer }).
    */
   async getArtifactWithPayment(
     packageId: string,
     version: string,
-    paymentHeader: string
+    paymentCredential: string
   ): Promise<ArtifactData> {
     const url = `${this.config.baseUrl}/v1/dna/${packageId}/versions/${version}/artifact`;
     const res = await fetch(url, {
-      headers: { 'X-PAYMENT': paymentHeader },
+      headers: { 'X-PAYMENT': paymentCredential },
     });
 
     if (res.status === 402) {
@@ -102,14 +85,7 @@ export class MarketplaceClient {
       throw new Error(`Artifact download failed: ${body.error ?? res.statusText}`);
     }
 
-    const paymentResponse = res.headers.get('X-PAYMENT-RESPONSE');
-    const data = await res.json() as ArtifactData;
-    if (paymentResponse) {
-      data.paymentResponse = JSON.parse(
-        Buffer.from(paymentResponse, 'base64').toString('utf8')
-      );
-    }
-    return data;
+    return res.json() as Promise<ArtifactData>;
   }
 }
 
@@ -128,5 +104,21 @@ export interface ArtifactData {
     verifiedAt: string;
     settlementRef: string;
   };
-  paymentResponse?: unknown;
+}
+
+/** Build base64 X-PAYMENT credential from a confirmed Solana txHash. */
+export function buildSolanaPaymentCredential(params: {
+  txHash: string;
+  nonce: string;
+  network: string;
+  payer?: string;
+}): string {
+  const payload = {
+    provider: 'solana-onchain',
+    txHash: params.txHash,
+    nonce: params.nonce,
+    network: params.network,
+    payer: params.payer ?? 'unknown',
+  };
+  return Buffer.from(JSON.stringify(payload)).toString('base64');
 }

@@ -35,8 +35,9 @@ import java.util.Map;
  *   - OKX_API_KEY / OKX_SECRET_KEY / OKX_PASSPHRASE (OnchainOS dev portal)
  *   - DNACLOUD_PAYMENT_ADDRESS (platform receive wallet)
  */
+/** @deprecated Replaced by SolanaPaymentVerifier. Kept for legacy reference only. */
+@Deprecated(since = "0.7", forRemoval = true)
 @Slf4j
-@Component
 public class OkxX402Client {
 
     @Value("${okx.x402.api-key:}")

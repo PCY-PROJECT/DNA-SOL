@@ -43,7 +43,8 @@ class MarketplaceServiceTest {
         assertEquals("official-capability-pack", pkg.getPackageType());
         assertFalse(pkg.getCapabilities().isEmpty());
         assertNotNull(pkg.getPrice());
-        assertEquals("USDT", pkg.getPrice().getCurrency());
+        assertEquals("USDC", pkg.getPrice().getCurrency());
+        assertEquals("solana-devnet", pkg.getPrice().getNetwork());
     }
 
     @Test

@@ -23,8 +23,11 @@ public class PackageValidatorService {
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".md", ".json", ".yaml", ".yml", ".txt", ".png", ".svg");
     private static final Set<String> ALLOWED_PACKAGE_TYPES = Set.of("official-capability-pack", "community-pack", "personal-pack");
-    private static final Set<String> SUPPORTED_NETWORKS = Set.of("eip155:196", "xlayer", "eip155:5000", "mantle");
-    private static final Set<String> SUPPORTED_CURRENCIES = Set.of("USDG", "USDT", "USDC");
+    private static final Set<String> SUPPORTED_NETWORKS = Set.of(
+        "solana-devnet", "solana", "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "eip155:196", "xlayer"  // legacy, kept for backward compatibility
+    );
+    private static final Set<String> SUPPORTED_CURRENCIES = Set.of("USDC", "USDT", "USDG");
 
     private static final List<Pattern> SECRET_PATTERNS = List.of(
         Pattern.compile("(?i)private[_\\s]?key\\s*[:=]\\s*[\"']?[a-fA-F0-9]{64}"),

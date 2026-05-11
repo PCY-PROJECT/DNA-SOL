@@ -31,58 +31,99 @@ description: >
 
 ```
 0. 支付环境检测（前置，必须通过才能继续）
-   → 检查是否已安装 OKX OnchainOS Payment Skill（Agentic Wallet）
-   → 若未安装，进入【OKX Payment Skill 配置引导】流程（见下方），完成后再继续
+   → 检查是否已安装 OKX OnchainOS（Agentic Wallet，支持 Solana）
+   → 若未安装，进入【支付环境配置引导】流程（见下方），完成后再继续
    → 若已安装，直接进入步骤 1
 
 1. 理解需求 → 识别用户想要的专家能力类型
 2. 搜索市场 → 调用 dnacloud-marketplace MCP 搜索相关 DNA 包
 3. 展示推荐 → 展示匹配的 DNA 包、价格、能力、权限影响
 4. 用户确认 → 等待用户确认购买
-5. OKX x402 支付 → 向 marketplace 请求 artifact，服务端返回 402
-   OKX Payment Skill 自动检测 402，Agentic Wallet 签名，重放请求完成支付
-6. 下载 artifact → 服务端验证支付后返回签名包
-7. 展示安装预览 → 列出将要安装的所有文件和修改
-8. 用户确认安装 → 等待最终确认
-9. 执行安装 → 调用 dnacloud-installer agent
-10. 验证 → 运行 dnacloud verify
-11. 完成 → 告知用户新能力已可用
+5. Solana USDC 支付 → 向 marketplace 请求 artifact，服务端返回 402 + Solana 支付要求
+   调用 onchainos wallet send 向平台地址转 USDC，获取 txHash
+6. 提交支付凭证 → 携带 txHash 重放请求，服务端链上验证
+7. 下载 artifact → 服务端验证通过后返回签名包
+8. 展示安装预览 → 列出将要安装的所有文件和修改
+9. 用户确认安装 → 等待最终确认
+10. 执行安装 → 调用 dnacloud-installer agent
+11. 验证 → 运行 dnacloud verify
+12. 完成 → 告知用户新能力已可用
 ```
 
-## OKX Payment Skill 配置引导
+## 支付流程详细说明（步骤 5-6）
 
-**触发条件**：用户尝试购买 DNA 包时，检测到 OKX Payment Skill 未安装。
+服务端 402 响应包含：
+```json
+{
+  "error": "payment_required",
+  "payment": {
+    "network": "solana-devnet",
+    "payTo": "AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV",
+    "asset": "USDC",
+    "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    "amount_atomic": "1000",
+    "amount_display": "0.001 USDC",
+    "nonce": "<uuid>"
+  }
+}
+```
+
+支付步骤：
+```
+1. 调用 okx-agentic-wallet skill，执行 Solana USDC 转账：
+
+   onchainos wallet send \
+     --readable-amount 0.001 \
+     --recipient AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
+     --chain solana \
+     --contract-token 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+
+2. 从返回结果中取得 txHash（Solana tx signature）
+
+3. 构造 X-PAYMENT header：
+   base64({ provider: "solana-onchain", txHash: "<txHash>", nonce: "<nonce>", network: "solana-devnet" })
+
+4. 携带 X-PAYMENT 重新请求下载接口
+```
+
+## 支付环境配置引导
+
+**触发条件**：用户尝试购买 DNA 包时，检测到未安装 OKX OnchainOS。
 
 **引导流程**：
 
 ```
-购买 DNA 包需要 OKX OnchainOS Payment Skill 完成链上支付。
-Payment Skill 提供 Agentic Wallet，自动处理 HTTP 402 支付请求，无需手动管理私钥。
+购买 DNA 包需要 OKX OnchainOS Agentic Wallet 完成 Solana USDC 链上支付。
+Agentic Wallet 私钥由 TEE 保管，无需手动管理私钥。
 
-━━━━━━━━ 安装 OKX Payment Skill ━━━━━━━━
+━━━━━━━━ 安装 OKX OnchainOS ━━━━━━━━
 
-步骤 1：按照官方文档安装 Payment Skill
-  → https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/payment-use-buyer
-  安装后，Skill 会自动配置 Agentic Wallet（私钥由 TEE 保管，无需导出）
+步骤 1：安装 OnchainOS Skills
+  npx skills add okx/onchainos-skills
 
-步骤 2：为 Agentic Wallet 充值 USDT
-  - 在 OKX 购买 USDT，转入 X Layer 网络
-  - 或通过 OKX Wallet 跨链桥转入
-  - Trading Master DNA 售价：0.001 USDT
+步骤 2：初始化 Agentic Wallet
+  onchainos wallet login
+  （使用邮箱验证，自动生成 EVM + Solana 钱包地址，私钥在 TEE 内）
 
-步骤 3：告诉我"配置完成了"，我会重新检测并继续安装。
+步骤 3：为 Solana 钱包充值 devnet USDC
+  - 查看 Solana 地址：onchainos wallet balance --chain solana
+  - 获取 devnet SOL（用于 gas）：https://faucet.solana.com
+  - 获取 devnet USDC：https://spl-token-faucet.com
+  - Trading Master DNA 售价：0.001 USDC
+
+步骤 4：告诉我"配置完成了"，我会重新检测并继续安装。
 
 ⚠️ 说明：
   - Agentic Wallet 私钥在 TEE 内生成，不可导出，用户无需管理私钥
-  - 支付由 Payment Skill 全自动完成，无需手动操作
-  - 参考：https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/overview
+  - 支付通过 onchainos wallet send 完成，服务端用 Solana RPC 链上验证
+  - 如使用主网，请把 devnet USDC 换成 mainnet USDC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**检测方式**：询问用户"是否已安装 OKX OnchainOS Payment Skill 并配置了 Agentic Wallet？"
-- 用户确认已安装 → 通过，继续购买流程
-- 用户未安装 → 展示引导，等待完成配置
+**检测方式**：检查 onchainos CLI 是否可用，以及 Solana 钱包是否已初始化。
+- 可用 → 通过，继续购买流程
+- 不可用 → 展示引导，等待完成配置
 
 ## 执行流程（卖家）
 

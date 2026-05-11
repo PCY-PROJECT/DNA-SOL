@@ -24,13 +24,17 @@
   ],
   "price": {
     "amount": "0.001",
-    "currency": "USDT",
-    "network": "xlayer"
+    "currency": "USDC",
+    "network": "solana-devnet",
+    "amount_atomic": "1000",
+    "asset": "USDC",
+    "mint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
   },
   "payout": {
-    "address": "0x0000000000000000000000000000000000000001",
-    "currency": "USDT",
-    "network": "xlayer"
+    "address": "AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV",
+    "currency": "USDC",
+    "network": "solana-devnet",
+    "asset": "USDC"
   },
   "components": {
     "skills": [

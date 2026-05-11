@@ -44,7 +44,7 @@ public class CreatorService {
     @Value("${dnacloud.signing-key:}")
     private String signingKey;
 
-    @Value("${dnacloud.payment-address:}")
+    @Value("${dnacloud.merchant-address:AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV}")
     private String platformPaymentAddress;
 
     @Value("${dnacloud.treasury-key:}")
@@ -134,14 +134,14 @@ public class CreatorService {
         // Price
         Map<String, Object> price = getNestedMap(manifest, "price");
         String priceAmount = priceOverride != null ? priceOverride : (String) price.getOrDefault("amount", "1.00");
-        String priceCurrency = currencyOverride != null ? currencyOverride : (String) price.getOrDefault("currency", "USDT");
-        String priceNetwork = (String) price.getOrDefault("network", "eip155:196");
+        String priceCurrency = currencyOverride != null ? currencyOverride : (String) price.getOrDefault("currency", "USDC");
+        String priceNetwork = (String) price.getOrDefault("network", "solana-devnet");
 
         // Payout
         Map<String, Object> payout = getNestedMap(manifest, "payout");
         String payoutAddress = (String) payout.getOrDefault("address", session.getPayoutAddress());
-        String payoutNetwork = (String) payout.getOrDefault("network", "eip155:196");
-        String payoutCurrency = (String) payout.getOrDefault("currency", "USDT");
+        String payoutNetwork = (String) payout.getOrDefault("network", "solana-devnet");
+        String payoutCurrency = (String) payout.getOrDefault("currency", "USDC");
 
         // Creator
         Map<String, Object> creator = getNestedMap(manifest, "creator");
@@ -277,8 +277,8 @@ public class CreatorService {
             .filter(e -> e.getStatus() == RevenueStatus.paid)
             .mapToLong(RevenueEntryEntity::getCreatorAmount).sum();
 
-        String currency = entries.isEmpty() ? "USDT" : entries.get(0).getCurrency();
-        String network = entries.isEmpty() ? "eip155:196" : entries.get(0).getNetwork();
+        String currency = entries.isEmpty() ? "USDC" : entries.get(0).getCurrency();
+        String network = entries.isEmpty() ? "solana-devnet" : entries.get(0).getNetwork();
         String payoutAddr = entries.isEmpty() ? walletAddress : entries.get(0).getPayoutAddress();
 
         List<Map<String, Object>> entryList = entries.stream().map(e -> Map.<String, Object>of(

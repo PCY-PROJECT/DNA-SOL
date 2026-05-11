@@ -3,7 +3,8 @@ import ora from 'ora';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { MarketplaceClient } from '../marketplace/MarketplaceClient.js';
+import { MarketplaceClient, buildSolanaPaymentCredential } from '../marketplace/MarketplaceClient.js';
+import { buildOnchainOsCommand, getPaymentConfigError } from '../marketplace/PaymentClient.js';
 import { Installer } from '../installer/Installer.js';
 import { Verifier } from '../installer/Verifier.js';
 
@@ -11,6 +12,7 @@ interface InstallOptions {
   version: string;
   marketplaceUrl: string;
   yes?: boolean;
+  txHash?: string;
 }
 
 export async function installCommand(packageId: string, options: InstallOptions): Promise<void> {
@@ -45,47 +47,76 @@ export async function installCommand(packageId: string, options: InstallOptions)
 
   const version = options.version === 'latest' ? manifest.version : options.version;
 
+  // ── Step 1: Request artifact (triggers 402 if payment needed) ────────────
   spin.start('请求 artifact...');
+  const probe = await marketplaceClient.requestArtifact(packageId, version);
+
   let artifactData;
 
-  // 从环境中获取 X-PAYMENT（由 OKX Payment Skill 注入）
-  const xPayment = process.env.X_PAYMENT_CREDENTIAL ?? '';
-
-  if (!xPayment) {
-    const probe = await marketplaceClient.requestArtifact(packageId, version);
-    if (probe.type === 'success') {
-      spin.succeed('无需支付，artifact 已获取');
-      artifactData = probe.data;
-    } else {
-      spin.stop();
-      const req = probe.requirement;
-      console.log('\n' + chalk.bold('💳 需要支付：'));
-      console.log(`  金额:   ${req.maxAmountRequired} ${req.extra?.name ?? req.asset}`);
-      console.log(`  网络:   ${req.network}`);
-      console.log(`  收款方: ${req.payTo}`);
-      console.log(`\n${chalk.yellow('支付方式 A — OKX OnchainOS CLI（推荐）：')}`);
-      console.log(`  onchainos payment x402-pay --accepts '${JSON.stringify(req)}' --key $YOUR_WALLET_KEY`);
-      console.log(`  # 拿到 base64 payload 后重新运行：`);
-      console.log(chalk.cyan(`  X_PAYMENT_CREDENTIAL=<base64_payload> dnacloud install ${packageId} --yes`));
-      console.log(`\n${chalk.yellow('支付方式 B — Claude Code Agent（需已安装 OKX Payment Skill）：')}`);
-      console.log(`  在 Claude Code 中说"我要安装 ${packageId}"，Agent 会自动完成支付并注入凭证\n`);
-      process.exit(1);
-    }
+  if (probe.type === 'success') {
+    spin.succeed('无需支付，artifact 已获取');
+    artifactData = probe.data;
   } else {
-    spin.text = 'OKX x402 支付凭证验证中...';
-    try {
-      artifactData = await marketplaceClient.getArtifactWithPayment(packageId, version, xPayment);
-      const txHash = artifactData.paymentReceipt?.txHash;
-      if (txHash) {
-        spin.succeed(`支付已确认  txHash: ${chalk.green(txHash)}`);
-      } else {
-        spin.succeed('支付已确认（链上结算延迟，txHash 将在 30-60s 后可查）');
+    // Payment required — Solana USDC
+    spin.stop();
+    const req = probe.requirement;
+
+    console.log('\n' + chalk.bold('💳 需要支付：'));
+    console.log(`  金额:   ${chalk.yellow(req.amount_display)}`);
+    console.log(`  网络:   ${req.network}`);
+    console.log(`  收款方: ${req.payTo}`);
+    console.log(`  资产:   USDC (${req.mint})`);
+
+    // ── Step 2: Get txHash ────────────────────────────────────────────────
+    let txHash = options.txHash?.trim() ?? '';
+
+    if (!txHash) {
+      // Check if running inside Claude Code with OnchainOS Agentic Wallet
+      const isAgentMode = process.env.ONCHAINOS_AGENT === 'true';
+
+      console.log('\n' + chalk.bold('支付方式 A — OKX OnchainOS Agentic Wallet（推荐）：'));
+      console.log(chalk.cyan('  ' + buildOnchainOsCommand(req).replace(/\n/g, '\n  ')));
+
+      console.log('\n' + chalk.bold('支付方式 B — 任意 Solana 钱包：'));
+      console.log(`  向地址 ${chalk.cyan(req.payTo)} 转账 ${chalk.yellow(req.amount_display)}`);
+      console.log(`  网络: ${req.network}  Mint: ${req.mint}`);
+
+      if (isAgentMode) {
+        console.log(chalk.yellow('\n正在 Claude Code Agent 环境中，请由 Skill 完成支付...'));
+        process.exit(2); // Signal to Skill to handle payment
       }
+
+      console.log('');
+      txHash = await promptInput('请输入转账 txHash（Solana tx signature）：');
+      if (!txHash.trim()) {
+        console.log(chalk.yellow('未提供 txHash，安装已取消。'));
+        process.exit(1);
+      }
+    }
+
+    const payerAddress = process.env.SOLANA_PAYER_ADDRESS ?? 'unknown';
+    const credential = buildSolanaPaymentCredential({
+      txHash: txHash.trim(),
+      nonce: req.nonce,
+      network: req.network,
+      payer: payerAddress,
+    });
+
+    // ── Step 3: Retry with payment credential ────────────────────────────
+    const verifySpinner = ora('链上支付验证中（Solana RPC）...').start();
+    try {
+      artifactData = await marketplaceClient.getArtifactWithPayment(packageId, version, credential);
+      const txHashShort = txHash.slice(0, 12) + '...';
+      verifySpinner.succeed(`支付已验证  tx: ${chalk.green(txHashShort)}`);
     } catch (err) {
-      spin.fail(`支付验证失败: ${(err as Error).message}`);
+      verifySpinner.fail(`支付验证失败: ${(err as Error).message}`);
+      console.log(chalk.yellow('\n提示：请确认转账已在链上确认（devnet 约需 2-5 秒），然后重试：'));
+      console.log(chalk.cyan(`  dnacloud install ${packageId} --tx-hash ${txHash}`));
       process.exit(1);
     }
   }
+
+  // ── Step 4: Download and install ─────────────────────────────────────────
   const tmpZip = path.join(process.cwd(), '.dnacloud', 'staging', `${packageId}-${version}.zip`);
   fs.mkdirSync(path.dirname(tmpZip), { recursive: true });
   const zipResponse = await fetch(artifactData.downloadUrl);
@@ -162,6 +193,16 @@ async function confirm(question: string): Promise<boolean> {
     rl.question(question, (answer) => {
       rl.close();
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
+}
+
+async function promptInput(question: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
     });
   });
 }
