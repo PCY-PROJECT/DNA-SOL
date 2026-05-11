@@ -206,8 +206,8 @@ public class PackageValidatorService {
                 String network = (String) payout.get("network");
                 String currency = (String) payout.get("currency");
                 String address = (String) payout.get("address");
-                if (address == null || !address.startsWith("0x")) {
-                    errors.add(error("INVALID_PAYOUT_ADDRESS", "payout.address must be a valid EVM address", "manifest.json"));
+                if (address == null || !address.matches("^[1-9A-HJ-NP-Za-km-z]{32,44}$")) {
+                    errors.add(error("INVALID_PAYOUT_ADDRESS", "payout.address must be a valid Solana wallet address", "manifest.json"));
                 }
                 if (network == null || !SUPPORTED_NETWORKS.contains(network)) {
                     errors.add(error("UNSUPPORTED_PAYOUT_NETWORK", "payout.network must be one of: " + SUPPORTED_NETWORKS, "manifest.json"));
