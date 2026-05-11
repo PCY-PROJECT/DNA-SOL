@@ -26,7 +26,7 @@ public class CreatorController {
     private String adminApiKey;
 
     private static final java.util.regex.Pattern WALLET_ADDRESS =
-            java.util.regex.Pattern.compile("^0x[0-9a-fA-F]{40}$");
+            java.util.regex.Pattern.compile("^[1-9A-HJ-NP-Za-km-z]{32,44}$");
 
     @PostMapping("/upload-session")
     public ResponseEntity<?> createUploadSession(@RequestBody Map<String, String> body) {
@@ -34,7 +34,7 @@ public class CreatorController {
         String payoutAddress = body.get("payout_address");
         String packageHash = body.get("package_hash");
         if (payoutAddress == null || !WALLET_ADDRESS.matcher(payoutAddress).matches()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "payout_address is required and must be a valid 0x-prefixed Ethereum address"));
+            return ResponseEntity.badRequest().body(Map.of("error", "payout_address is required and must be a valid Solana wallet address"));
         }
         UploadSessionEntity session = creatorService.createUploadSession(payoutAddress, packageHash);
         return ResponseEntity.ok(Map.of(
