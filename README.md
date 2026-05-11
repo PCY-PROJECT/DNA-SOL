@@ -1,127 +1,191 @@
 # DNAcloud
 
-**Universal AI Agent DNA Capability Marketplace**
+> **一句话，继承高手 DNA。**  
+> Say what expert you need. DNAcloud handles the rest — search, pay on Solana, install.
 
-用户说出想要什么专家，DNAcloud 通过 OKX x402 购买并将对应的 Skills、Agents、MCP、Hooks、Rules 和 Tests 安装到 AI Agent 项目中。
-
----
-
-## 项目定位
-
-DNAcloud 解决 AI Agent 生态的三个断点：
-
-- **用户**：不需要手动配置 Skill、MCP、Hook，只需说"我要一个交易大师"，DNAcloud 完成搜索、支付、安装全流程
-- **创作者**：可以把专业能力打包成可安装、可计费的 DNA 包，通过平台自动结算收益
-- **支付**：基于 OKX x402，AI Agent 和 CLI 可以自主按次购买能力包，不依赖传统账号订阅
-
-当前支持 **Claude Code**，Cursor / Codex / Windsurf 兼容中。
+DNAcloud is an **Agent DNA Marketplace for Claude Code**, built on Solana. Users describe the expert they want in natural language; DNAcloud automatically searches the marketplace, pays via **x402 on Solana USDC**, downloads, verifies, and installs the capability pack into the current Claude Code project.
 
 ---
 
-## 整体架构
+## The Problem
+
+AI coding agents are powerful but blank by default. Giving Claude Code domain expertise today means hours of manual configuration: writing Skills, wiring MCP servers, crafting Agents, setting up Hooks, and tuning Rules — per project, by hand.
+
+There's no standard format, no marketplace, no payment layer, no install protocol.
+
+## What DNAcloud Does
 
 ```
-用户说"我要一个交易大师"
-       │
-       ▼
-DNAcloud Skill (Claude Code 内)
-  检测 OKX x402 支付凭证
-       │
-       ▼
-dnacloud-market-researcher Agent
-  搜索 Marketplace API
-       │  ← GET /v1/dna/search
-       ▼
-Marketplace Server (Spring Boot)
-  返回匹配 DNA 包列表
-       │
-用户确认购买
-       │
-       ▼
-dnacloud CLI / PaymentClient
-  GET /artifact → 402 Payment Required
-  OKX x402 签名支付
-  retry → 服务端 verify → 返回签名 artifact
-       │
-       ▼
-dnacloud-installer Agent
-  解包 → 签名校验 → 展示 install preview
-  写入项目文件系统
-       │
-       ▼
-dnacloud verify → active
+User: "我要一个交易大师"  ("I want a trading master")
+
+DNAcloud Skill  →  search Marketplace API
+                →  present: Trading Master DNA · 0.001 USDC · Score 98/100
+User confirms
+
+dnacloud CLI    →  GET /artifact  →  402 Payment Required (Solana USDC)
+                →  onchainos wallet send --chain solana --amt 1000 --to AY5669...
+                →  txHash: 4mpR5QQg...
+                →  retry with X-PAYMENT credential
+                →  Server verifies on-chain via Solana RPC
+                →  200 OK · signed artifact returned
+
+Installer       →  verify signature + SHA256
+                →  show install preview
+                →  write: Skills / Agents / Commands / MCP / Hooks / Rules
+                →  dnacloud verify → active ✓
+
+New commands available: /trade-plan  /risk-check  /order-preview
 ```
 
 ---
 
-## 仓库结构
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **x402 on Solana** | HTTP 402 payment protocol — Agent pays USDC atomically per capability install, no accounts, no subscriptions |
+| **OKX OnchainOS** | Agentic wallet infrastructure (`onchainos wallet send`) — manages Solana wallet, signs and broadcasts transfers |
+| **On-chain verification** | Server calls Solana RPC `getTransaction` to verify merchant received ≥ required USDC before releasing artifact |
+| **Signed artifacts** | Every DNA package is SHA256 + platform-signed; installer verifies before writing a single file |
+| **Claude Code native** | Installs as Skills, Agents, Slash Commands, MCP configs, Hooks, and Rules — the full Claude Code extension surface |
+| **Creator economy** | Anyone can upload DNA packages; payout worker settles revenue to creator's Solana address automatically |
+
+---
+
+## Architecture
 
 ```
-DNA/
-├── packages/                    # TypeScript 包（pnpm workspace）
-│   ├── schema/                  # DNA 包 manifest schema 和类型定义
-│   ├── validator/               # DNA 包结构校验器（本地 validate 用）
-│   ├── cli/                     # dnacloud CLI（Node.js 18+）
-│   │   ├── src/
-│   │   │   ├── commands/        # init / install / verify / status / rollback / upload / creator
-│   │   │   ├── installer/       # Installer、Verifier、Rollback、路径管理
-│   │   │   └── marketplace/     # MarketplaceClient、PaymentClient（OKX x402）
-│   │   └── bootstrap/           # dnacloud init 时写入项目的 Bootstrap 副本
-│   └── mcp-server/              # DNAcloud MCP Server，暴露 marketplace 搜索工具给 Claude Code
+┌─────────────────── Claude Code (user's project) ──────────────────┐
+│                                                                     │
+│  DNAcloud Bootstrap (installed via dnacloud init)                  │
+│  ├── Skill: dnacloud          ← triggered by natural language      │
+│  ├── Agent: market-researcher ← searches Marketplace API           │
+│  ├── Agent: installer         ← unpacks + writes files             │
+│  └── Commands: /dna-install  /dna-upload  /dna-earnings  …        │
+│                                                                     │
+│  dnacloud CLI   ──── x402 payment flow ────────────────────────►  │
+│  dnacloud MCP Server  (search_dna_packages tool)                   │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ HTTP (REST)
+                                ▼
+┌──────────── DNAcloud Server (Spring Boot 3 / Java 17) ────────────┐
+│                                                                     │
+│  MarketplaceController   ← search, package detail, 402 artifact    │
+│  ArtifactService         ← parse X-PAYMENT, verify, settle         │
+│  SolanaPaymentVerifier   ← Solana RPC getTransaction               │
+│  CreatorController       ← upload, earnings, payout worker         │
+│                                                                     │
+│  H2 persistent DB  (packages, receipts, revenue, payouts)          │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ Solana RPC
+                                ▼
+                    ┌─── Solana Mainnet / Devnet ───┐
+                    │  verify: merchant received     │
+                    │  USDC ≥ required amount_atomic │
+                    └────────────────────────────────┘
+```
+
+### x402 Payment Flow
+
+```
+Client                              Server                       Solana
+  │                                    │                            │
+  │── GET /artifact ──────────────────►│                            │
+  │◄── 402 { payTo, mint,              │                            │
+  │         amount_atomic, nonce } ────│                            │
+  │                                    │                            │
+  │── onchainos wallet send ───────────────────────────────────────►│
+  │◄── txHash ──────────────────────────────────────────────────────│
+  │                                    │                            │
+  │── GET /artifact                    │                            │
+  │   X-PAYMENT: { txHash, payer } ───►│                            │
+  │                                    │── getTransaction(txHash) ─►│
+  │                                    │◄── tx + token balances ────│
+  │                                    │  verify: delta ≥ 1000 atomic
+  │◄── 200 OK { artifact,             │                            │
+  │            paymentReceipt } ───────│                            │
+```
+
+---
+
+## Repo Structure
+
+```
+DNA-SOL/
+├── packages/                    # TypeScript (pnpm workspace)
+│   ├── schema/                  # DnaManifest + InstallPlan types
+│   ├── validator/               # local package structure validator
+│   ├── cli/                     # dnacloud CLI (Node 18+)
+│   │   ├── src/commands/        # init / install / verify / status / rollback / upload / creator
+│   │   ├── src/installer/       # Installer · Verifier · Rollback
+│   │   └── src/marketplace/     # MarketplaceClient · PaymentClient (x402 Solana)
+│   ├── mcp-server/              # MCP server — exposes search_dna_packages to Claude Code
+│   └── web/                     # Marketplace web UI (Vite + React)
 │
-├── server/                      # Marketplace 后端（Spring Boot 3 / Java 17 / Maven）
+├── server/                      # Spring Boot 3 backend
 │   └── src/main/java/com/okg/dnacloud/
-│       ├── controller/          # MarketplaceController、CreatorController
-│       ├── service/             # MarketplaceService、ArtifactService、CreatorService
-│       ├── payment/             # OkxX402Client（x402 支付验证）
-│       ├── entity/              # JPA 实体（PackageVersion、PaymentReceipt、RevenueEntry 等）
-│       ├── repository/          # Spring Data JPA 仓库
-│       ├── model/               # API 请求/响应 DTO
-│       └── config/              # WebConfig（CORS）
+│       ├── controller/          # MarketplaceController · CreatorController
+│       ├── service/             # MarketplaceService · ArtifactService · CreatorService
+│       ├── payment/             # SolanaPaymentVerifier (Solana RPC)
+│       └── entity/              # PackageVersion · PaymentReceipt · RevenueEntry · PayoutRecord
 │
-├── dna-packages/                # DNA 包源文件
-│   ├── bootstrap/               # DNAcloud Bootstrap 插件（安装到用户 Claude Code 项目）
-│   │   └── .claude/
-│   │       ├── skills/dnacloud/ # DNAcloud 主 Skill（搜索、支付、安装引导）
-│   │       ├── agents/          # dnacloud-installer、dnacloud-market-researcher
-│   │       └── commands/        # /dna-install /dna-status /dna-upload /dna-earnings 等
-│   └── trading-master-dna/     # Trading Master DNA 官方能力包
-│       ├── manifest.json        # 包元信息（id、版本、价格、组件列表）
-│       ├── install-plan.json    # 安装计划（文件映射）
-│       ├── skills/              # trading-master Skill + 参考文档
-│       ├── agents/              # market-analyst、portfolio-manager、risk-manager 等
-│       ├── commands/            # /trade-plan /risk-check /order-preview 等
-│       ├── mcp/                 # market-data、account-read、order-execution MCP 配置模板
-│       ├── hooks/               # pre-tool-use-trade-guard（下单前风控拦截）
-│       ├── rules/               # 机器规则 + 权限策略
-│       └── tests/               # 安装后合规性测试
-│
-└── doc/                         # 文档和网站
-    ├── website/index.html       # 项目官网（单文件）
-    └── dnacloud_*.md            # 技术设计文档（v05 / v06）
+└── dna-packages/
+    ├── bootstrap/               # DNAcloud Bootstrap — written to user's project by dnacloud init
+    │   └── .claude/
+    │       ├── skills/dnacloud/ # main DNAcloud Skill (search · pay · install)
+    │       ├── agents/          # market-researcher · installer
+    │       └── commands/        # /dna-install /dna-upload /dna-earnings …
+    └── trading-master-dna/      # official capability pack
+        ├── manifest.json        # id · version · price (0.001 USDC · solana) · components
+        ├── install-plan.json
+        ├── skills/              # trading-master SKILL.md + reference docs
+        ├── agents/              # market-analyst · portfolio-manager · risk-manager · …
+        ├── commands/            # /trade-plan /risk-check /order-preview /portfolio-status
+        ├── mcp/                 # market-data · account-read · order-execution (env var refs only)
+        ├── hooks/               # pre-tool-use trade guard
+        └── rules/               # machine rules + permissions
 ```
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 环境要求
+### Prerequisites
 
-| 工具 | 版本 |
-|------|------|
+| Tool | Version |
+|------|---------|
 | Node.js | ≥ 18 |
 | pnpm | ≥ 9 |
-| Java | 17（服务端） |
-| Maven | 3.x（服务端） |
+| Java | 17 |
+| OKX OnchainOS CLI | latest (`onchainos`) |
 
-### 构建所有 TypeScript 包
+### 1. Build TypeScript packages
 
 ```bash
 pnpm install
-pnpm build          # 构建 schema、validator、cli、mcp-server
+pnpm build
 ```
 
-### 构建并启动服务端
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+```env
+# Solana network (mainnet or devnet)
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+SOLANA_NETWORK=solana
+SOLANA_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+
+# Platform merchant address (receives buyer USDC payments)
+DNACLOUD_MERCHANT_ADDRESS=AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV
+
+# Optional — package signing key
+DNACLOUD_SIGNING_KEY=your_signing_key
+```
+
+### 3. Start the server
 
 ```bash
 cd server
@@ -132,45 +196,32 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
   java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
 ```
 
-服务默认监听 `http://localhost:8080`，使用 H2 内存/文件数据库（`./data/dnacloud.mv.db`）。
+Server starts on `http://localhost:8080` with H2 persistent DB at `./data/dnacloud.mv.db`.
 
-### 初始化 DNAcloud Bootstrap
+### 4. Initialize DNAcloud in your Claude Code project
 
 ```bash
-# 全局安装 CLI（开发时用本地构建版本）
-node packages/cli/dist/index.js init
-
-# 或发布后
-npm install -g @dnacloud/cli
+# from any Claude Code project directory
 dnacloud init
 ```
 
-`dnacloud init` 会将以下内容写入当前 Claude Code 项目：
+This writes the DNAcloud Bootstrap into `.claude/` — Skills, Agents, and Commands are immediately available.
 
-| 类型 | 文件 | 说明 |
-|------|------|------|
-| Skill | `.claude/skills/dnacloud/SKILL.md` | 核心搜索/购买/安装引导 |
-| Agent | `.claude/agents/dnacloud-installer.md` | 负责解包和安装 |
-| Agent | `.claude/agents/dnacloud-market-researcher.md` | 负责市场搜索 |
-| Command | `.claude/commands/dna-install.md` | `/dna-install` |
-| Command | `.claude/commands/dna-status.md` | `/dna-status` |
-| Command | `.claude/commands/dna-upload.md` | `/dna-upload` |
-| Command | `.claude/commands/dna-earnings.md` | `/dna-earnings` |
-| Command | `.claude/commands/dna-packages.md` | `/dna-packages` |
-| Command | `.claude/commands/dna-create.md` | `/dna-create` |
-| Command | `.claude/commands/dna.md` | `/dna`（帮助入口） |
+### 5. Buy and install Trading Master DNA
 
-### 购买和安装 Trading Master DNA
-
-```bash
-# 前提：配置 OKX OnchainOS 支付凭证（见下方）
-dnacloud install trading-master-dna
-
-# 或直接在 Claude Code 中说：
-# "我要一个交易大师"
+Option A — natural language (recommended):
+```
+You:  "我要一个交易大师"
 ```
 
-### 验证安装状态
+Option B — direct command:
+```bash
+dnacloud install trading-master-dna
+```
+
+DNAcloud will prompt for OKX OnchainOS wallet authorization, show the install preview, and complete the Solana USDC payment automatically.
+
+### 6. Verify installation
 
 ```bash
 dnacloud verify trading-master-dna
@@ -179,80 +230,143 @@ dnacloud status
 
 ---
 
-## OKX x402 支付凭证配置
+## OKX OnchainOS Wallet Setup
 
-购买 DNA 包需要 OKX OnchainOS 开发者凭证（**非 OKX 交易所普通 API Key**）：
-
-1. 打开 [OKX OnchainOS 开发者门户](https://web3.okx.com/zh-hans/onchainos/dev-portal)
-2. 连接 EVM 钱包（MetaMask 等），签名验证地址所有权，无需充值
-3. 在开发者门户创建 API Key，保存三个凭证
-4. 写入项目 `.env`：
-
-```env
-OKX_API_KEY=your_api_key
-OKX_SECRET_KEY=your_secret_key
-OKX_PASSPHRASE=your_passphrase
-```
-
-未配置时直接对 Claude Code 说"我要安装 DNA"，Skill 会自动引导完成配置。
-
----
-
-## 服务端 API
-
-| 端点 | 说明 |
-|------|------|
-| `GET /v1/dna/search?q=` | 搜索 DNA 包 |
-| `GET /v1/dna/{id}` | 获取包详情 |
-| `GET /v1/dna/{id}/versions/{ver}/artifact` | 获取 artifact（需 x402 支付） |
-| `POST /v1/creator/packages/upload` | 上传 DNA 包 |
-| `GET /v1/creator/packages?wallet=` | 查询创作者包列表 |
-| `GET /v1/creator/earnings?wallet=` | 查询收益账本 |
-| `GET /v1/creator/payouts?wallet=` | 查询结算记录 |
-| `POST /v1/creator/admin/payouts/run-once` | 触发 payout worker（需 Admin Key） |
-
-完整部署配置见 [DEPLOY.md](./DEPLOY.md)。
-
----
-
-## Creator 工作流
+DNAcloud uses **OKX OnchainOS** (`onchainos`) as the agentic wallet layer for Solana payments.
 
 ```bash
-# 本地校验包结构
-dnacloud validate ./my-dna-package.zip
+# Login with your OKX account
+onchainos wallet login
 
-# 上传到市场
-dnacloud upload ./my-dna-package.zip --payout-address 0x...
+# Check your Solana wallet address and USDC balance
+onchainos wallet addresses
+onchainos wallet balance --chain solana
+```
 
-# 查看收益
-dnacloud creator earnings <wallet>
-dnacloud creator payouts <wallet>
+The payment flow is fully automated — `dnacloud install` handles the `onchainos wallet send` call, txHash capture, and X-PAYMENT credential construction without manual steps.
+
+---
+
+## Trading Master DNA
+
+The flagship official capability pack. After installation, Claude Code gains:
+
+| Component | What it does |
+|-----------|-------------|
+| **1 Skill** | Master trading workflow context |
+| **5 Agents** | market-analyst · portfolio-manager · risk-manager · execution-reviewer · trade-journalist |
+| **5 Commands** | `/trade-plan` `/risk-check` `/order-preview` `/portfolio-status` `/daily-trade-review` |
+| **3 MCP configs** | market-data · account-read · order-execution *(env var refs — you supply real credentials)* |
+| **1 Hook** | Pre-tool-use trade guard — blocks order tools until review passes |
+| **2 Rules** | Machine rules + permission policy |
+
+> **Important:** Trading Master DNA installs trading *workflow capabilities*, not trading strategies. It does not guarantee profitability, win rate, or investment returns. Live order execution requires configuring your own exchange API credentials.
+
+---
+
+## Creator Guide
+
+Publish your own DNA packages and earn USDC on every install.
+
+```bash
+# 1. Validate your package locally
+dnacloud validate ./my-dna-pack.zip
+
+# 2. Upload via Claude Code (guided flow)
+/dna-upload
+
+# 3. Track earnings
+/dna-earnings
+dnacloud creator earnings <your-solana-address>
+```
+
+**Revenue flow:** Buyer pays USDC via x402 → DNAcloud platform receives → payout worker settles 90% to creator's Solana address every hour.
+
+See [Creator Guide](./dna-packages/bootstrap/.claude/commands/dna-upload.md) for `manifest.json` format and security requirements.
+
+---
+
+## Server API Reference
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /v1/dna/search?q=` | — | Search packages |
+| `GET /v1/dna/{id}` | — | Package detail |
+| `GET /v1/dna/{id}/versions/{ver}/artifact` | X-PAYMENT | Download artifact (x402 protected) |
+| `POST /v1/creator/packages/upload` | — | Upload DNA package |
+| `GET /v1/creator/earnings?wallet=` | — | Creator earnings ledger |
+| `GET /v1/creator/payouts?wallet=` | — | Settlement history |
+| `POST /v1/creator/admin/payouts/run-once` | Admin-Key | Trigger payout worker |
+
+### 402 Response Format
+
+```json
+{
+  "error": "payment_required",
+  "payment": {
+    "network": "solana",
+    "payTo": "AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV",
+    "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "amount_atomic": "1000",
+    "amount_display": "0.001 USDC",
+    "nonce": "uuid",
+    "expires_at": "ISO8601"
+  }
+}
+```
+
+### X-PAYMENT Credential Format
+
+```json
+// base64-encoded JSON sent in X-PAYMENT header
+{
+  "provider": "solana-onchain",
+  "txHash": "<solana-tx-signature>",
+  "nonce": "<nonce-from-402>",
+  "network": "solana",
+  "payer": "<sender-wallet-address>"
+}
 ```
 
 ---
 
-## DNA 包格式
+## Tech Stack
 
-每个 DNA 包是一个 zip，包含：
+| Layer | Tech |
+|-------|------|
+| Payment protocol | x402 (HTTP 402 + X-PAYMENT header) |
+| Blockchain | Solana mainnet / devnet |
+| Payment token | USDC (SPL token) |
+| Agentic wallet | OKX OnchainOS (`onchainos wallet send`) |
+| On-chain verification | Solana JSON RPC `getTransaction` |
+| Backend | Spring Boot 3 · Java 17 · Maven · H2 |
+| CLI / MCP | TypeScript · Node 18 · pnpm workspace |
+| AI platform | Claude Code (Skills · Agents · Commands · MCP · Hooks) |
+| Frontend | React · Vite · Tailwind CSS |
+
+---
+
+## Demo
+
+Live demo server: `http://localhost:8080`
+
+```bash
+# Test 402 response
+curl -i http://localhost:8080/v1/dna/trading-master-dna/versions/1.0.0/artifact
+
+# Search packages
+curl http://localhost:8080/v1/dna/search?q=trading | jq .
+```
+
+The end-to-end E2E flow — OKX OnchainOS Solana USDC transfer → server RPC verification → artifact delivery — has been validated on Solana mainnet:
 
 ```
-manifest.json        # 必填：包身份、版本、价格、组件列表
-install-plan.json    # 必填：文件安装映射
-signature.txt        # 平台签名
-skills/              # Claude Code Skill
-agents/              # Subagent 定义
-commands/            # Slash Commands
-mcp/                 # MCP Server 配置模板（只含环境变量引用，不含真实 key）
-hooks/               # PreToolUse / PostToolUse Hook
-rules/               # 机器规则
-tests/               # 安装后验证用例
+txHash: 4mpR5QQg6dD6dCmboS1zzF8G9EgbrbtsLKsG1YSBKWkwq3NABDBssHot1AxQFfxaUMQFFG9mCFA1eDnJUsBMwoow
+amount: 0.01 USDC  ·  network: Solana mainnet  ·  result: 200 OK ✓
 ```
 
 ---
 
-## 硬性约束
+## License
 
-- 不使用 mock payment，支付失败不安装
-- MCP 配置只写 `${ENV_VAR}` 占位，不硬编码真实 key
-- 不伪造行情、账户余额、成交结果
-- Trading Master DNA 不承诺盈利
+MIT
