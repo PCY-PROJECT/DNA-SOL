@@ -24,7 +24,7 @@
 验收测试
   [ ] 9. 服务端接口冒烟测试
   [ ] 10. CLI 端到端安装流程测试
-  [ ] 11. OKX x402 真实支付测试
+  [ ] 11. Solana USDC 真实支付测试
 ```
 
 ---
@@ -116,24 +116,16 @@ DNACLOUD_BASE_URL=https://finderfund.cn/dna
 # ─── Artifact 存储 ────────────────────────────────────────────────
 DNACLOUD_ARTIFACT_STORE=/opt/dnacloud/artifacts
 
-# ─── OKX OnchainOS 支付凭证 ───────────────────────────────────────
-# 来源：https://web3.okx.com/zh-hans/onchainos/dev-portal
-# 注意：这是 OnchainOS 开发者门户的凭证，不是 OKX 交易所 API Key
-OKX_API_KEY=<从 OnchainOS 门户获取>
-OKX_SECRET_KEY=<从 OnchainOS 门户获取>
-OKX_PASSPHRASE=<从 OnchainOS 门户获取>
+# ─── Solana 网络配置 ──────────────────────────────────────────────
+# 生产环境使用 mainnet；开发/测试使用 devnet
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+SOLANA_NETWORK=solana
+# mainnet USDC SPL token mint
+SOLANA_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 
-# ─── 代币合约地址 ─────────────────────────────────────────────────
-# XLayer mainnet USDT 合约地址
-USDT_CONTRACT_ADDRESS=0x779ded0c9e1022225f8e0630b35a9b54be713736
-
-# ─── 平台钱包 ─────────────────────────────────────────────────────
-# 买家付款目标地址（平台收款钱包，EVM 地址）
-DNACLOUD_PAYMENT_ADDRESS=0x<平台钱包地址>
-
-# 平台出款私钥（可选，配置后自动链上转账给创作者）
-# 不配置时 payout 保持 pending 状态，需手动处理
-# DNACLOUD_TREASURY_KEY=0x<私钥>
+# ─── 平台收款地址 ─────────────────────────────────────────────────
+# 买家 x402 USDC 转账的目标地址（Solana 地址）
+DNACLOUD_MERCHANT_ADDRESS=AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV
 
 # ─── 安全密钥 ─────────────────────────────────────────────────────
 # 生成命令：openssl rand -hex 32
@@ -144,11 +136,9 @@ DNACLOUD_SIGNING_KEY=<64字节随机值>
 
 # ─── 业务参数 ─────────────────────────────────────────────────────
 DNACLOUD_CORS_ORIGINS=https://finderfund.cn/dna
-DNACLOUD_PLATFORM_FEE_RATE=0.20
-DNACLOUD_MINIMUM_PAYOUT=100000
-
-# ─── 生产必须保持注释 ─────────────────────────────────────────────
-# DNACLOUD_LOCAL_TEST=false
+DNACLOUD_PLATFORM_FEE_RATE=0.10
+# 最小结算金额（USDC atomic units，1 USDC = 1,000,000）
+DNACLOUD_MINIMUM_PAYOUT=10000
 ```
 
 修改 `.env` 后重启：
@@ -253,14 +243,18 @@ node packages/cli/dist/index.js validate trading-master-dna-1.0.1.zip
 
 ```bash
 node packages/cli/dist/index.js upload trading-master-dna-1.0.1.zip \
-  --payout-address 0x<平台钱包地址> \
+  --payout-address AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
   --marketplace-url https://finderfund.cn/dna
 ```
 
 ### 6.4 验证上传成功
 
 ```bash
-curl -s "https://finderfund.cn/dna/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
+curl -s "https://finderfund.cn/dna/v1/dna/trading-master-dna" | python3 -m json.tool | grep -E '"version"|"currency"|"network"'
+# 期望：
+#   "version": "1.0.1"
+#   "currency": "USDC"
+#   "network": "solana"
 ```
 
 ---
@@ -311,23 +305,27 @@ curl -s $BASE/actuator/health
 # 期望：{"status":"UP"}
 
 # 搜索包
-curl -s "$BASE/v1/dna/search?q=trading" | python3 -m json.tool | grep '"currency"'
-# 期望："currency": "USDT"
-
-# 获取包详情
-curl -s "$BASE/v1/dna/trading-master-dna" | python3 -m json.tool | grep '"version"'
+curl -s "$BASE/v1/dna/search?q=trading" | python3 -m json.tool | grep -E '"currency"|"network"'
+# 期望："currency": "USDC" · "network": "solana"
 
 # 无支付请求 artifact → 应返回 402
-curl -s -o /dev/null -w "%{http_code}" "$BASE/v1/dna/trading-master-dna/versions/1.0.1/artifact"
-# 期望：402
+curl -si "$BASE/v1/dna/trading-master-dna/versions/1.0.0/artifact"
+# 期望：HTTP 402 · body 包含 payTo、mint、amount_atomic
 
-# 解码 402 的支付要求
-curl -s -I "$BASE/v1/dna/trading-master-dna/versions/1.0.1/artifact" \
-  | grep X-PAYMENT-REQUIREMENT \
-  | awk '{print $2}' \
-  | base64 -d \
-  | python3 -m json.tool
-# 期望：包含 payTo 平台地址、asset USDT 合约、network eip155:196
+# 解析 402 响应内容
+curl -s "$BASE/v1/dna/trading-master-dna/versions/1.0.0/artifact" | python3 -m json.tool
+# 期望：
+# {
+#   "error": "payment_required",
+#   "payment": {
+#     "network": "solana",
+#     "payTo": "AY5669...",
+#     "mint": "EPjFWdd5...",
+#     "amount_atomic": "1000",
+#     "amount_display": "0.001 USDC",
+#     ...
+#   }
+# }
 ```
 
 ### 8.2 CLI 端到端安装测试（本地测试模式）
@@ -352,43 +350,57 @@ DNACLOUD_LOCAL_TEST=true \
 #   状态: partial（liveTradingReady: ✗ 因未配置交易所 API key，这是预期行为）
 ```
 
-### 8.3 真实 OKX x402 支付测试
+### 8.3 Solana USDC 真实支付测试
 
-> 需要买家已安装 OKX OnchainOS Payment Skill 且 Agentic Wallet 有 USDT 余额
-
-1. 在装有 OKX Payment Skill 的 Claude Code 项目中执行 `dnacloud init`
-2. 重启 Claude Code
-3. 说："我要安装 Trading Master DNA"
-4. 查看 Claude 是否触发 dnacloud skill → 搜索 → 展示包信息 → 发起 OKX 支付
-5. 支付完成后验证：
+> 前提：OKX OnchainOS CLI 已登录，Solana 钱包有 USDC 余额
 
 ```bash
-dnacloud verify trading-master-dna
-# 期望：signature verified, payment receipt found, skills/agents/commands 全部 ✓
+# 1. 查询钱包余额
+onchainos wallet balance --chain solana
+# 期望：USDC balance ≥ 0.001
+
+# 2. 手动发起转账（模拟 CLI 自动完成的支付步骤）
+onchainos wallet send \
+  --chain solana \
+  --contract-token EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
+  --amt 1000 \
+  --to AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
+  --force
+# 记录返回的 txHash
+
+# 3. 携带支付凭证请求 artifact
+TX_HASH="<上一步返回的 txHash>"
+PAYER="<你的 Solana 钱包地址>"
+CRED=$(echo -n "{\"provider\":\"solana-onchain\",\"txHash\":\"$TX_HASH\",\"nonce\":\"test\",\"network\":\"solana\",\"payer\":\"$PAYER\"}" | base64)
+
+curl -si "https://finderfund.cn/dna/v1/dna/trading-master-dna/versions/1.0.0/artifact" \
+  -H "X-PAYMENT: $CRED"
+# 期望：HTTP 200 · body 包含 downloadUrl + paymentReceipt
 ```
 
 ---
 
-## 九、OKX OnchainOS 账号配置指引
+## 九、OKX OnchainOS 买家侧配置
 
-### 9.1 获取 API 凭证（服务端用）
+买家需要安装并登录 OKX OnchainOS CLI，使其 Solana 钱包中有 USDC。
 
-1. 访问 [OKX OnchainOS 开发者门户](https://web3.okx.com/zh-hans/onchainos/dev-portal)
-2. 注册/登录后创建应用
-3. 获取 `API Key`、`Secret Key`、`Passphrase`
-4. 填入服务器 `/opt/dnacloud/.env` 的 `OKX_API_KEY` / `OKX_SECRET_KEY` / `OKX_PASSPHRASE`
+```bash
+# 安装 onchainos
+# 参考：https://web3.okx.com/zh-hans/onchainos/dev-docs/wallet/product-and-service
 
-> ⚠️ 这是 OnchainOS 凭证，不是 OKX 交易所 API Key，两者不同。
+# 登录（邮箱验证码）
+onchainos wallet login
 
-### 9.2 买家侧：安装 OKX Payment Skill
+# 查看 Solana 钱包地址
+onchainos wallet addresses
 
-买家在 Claude Code 中操作：
+# 确认有 USDC 余额（mainnet 或 devnet 根据服务端配置）
+onchainos wallet balance --chain solana
+```
 
-1. 访问 [Payment Skill 安装文档](https://web3.okx.com/zh-hans/onchainos/dev-docs/payments/payment-use-buyer)
-2. 按文档安装 OKX OnchainOS Payment Skill
-3. Skill 自动创建 Agentic Wallet（私钥在 TEE 内，无需导出）
-4. 向 Agentic Wallet 充值 USDT（XLayer 网络）
-5. 余额到账后，即可购买 DNA 包
+**Solana devnet 测试用 USDC 获取：**
+- SOL faucet: https://faucet.solana.com
+- USDC faucet: https://faucet.circle.com（选 Solana Devnet）
 
 ---
 
@@ -415,7 +427,7 @@ curl -X POST https://finderfund.cn/dna/v1/creator/admin/payouts/run-once \
   -H "X-Admin-Api-Key: <DNACLOUD_ADMIN_API_KEY>"
 
 # 查看某个创作者收益
-curl "https://finderfund.cn/dna/v1/creator/earnings?wallet=0x<address>"
+curl "https://finderfund.cn/dna/v1/creator/earnings?wallet=<solana-address>"
 ```
 
 ---
@@ -424,11 +436,12 @@ curl "https://finderfund.cn/dna/v1/creator/earnings?wallet=0x<address>"
 
 | 功能 | 状态 | 说明 |
 |------|------|------|
-| OKX x402 支付 | 代码已就绪 | 服务端调用 OKX Facilitator HTTP API，需 OKX OnchainOS 账号激活 |
-| 链上自动 payout | 待实现 | `DNACLOUD_TREASURY_KEY` 配置后接口已预留，web3j 转账逻辑未实现 |
+| Solana x402 支付 | ✅ 已实现并 E2E 验证 | OnchainOS `wallet send` + 服务端 Solana RPC `getTransaction` 验证 |
+| 链上自动 payout | 部分实现 | payout worker 写账本，链上转账逻辑待接入 Solana web3.js |
 | 速率限制 | 未实现 | 建议在 Nginx 层添加 rate limiting |
 | 认证系统 | 最简 | Creator 端点仅 payout_address 鉴权；Admin 端点有 API Key 保护 |
-| H2 数据库 | 适合演示 | 生产建议迁移到 MySQL |
+| H2 数据库 | 适合演示 | 生产建议迁移到 PostgreSQL / MySQL |
+| Solana devnet 延迟 | 已处理 | 验证器内置 3 次重试（间隔 3s），应对 devnet 出块延迟 |
 
 ---
 
@@ -440,20 +453,17 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
   mvn -f server/pom.xml package -DskipTests
 pnpm -r build
 
-# 2. 启动服务端（本地测试模式）
-export $(grep -v '^#' .env | grep -v '^$' | xargs)
-DNACLOUD_LOCAL_TEST=true \
-DNACLOUD_BASE_URL=http://localhost:8089 \
-DNACLOUD_ARTIFACT_STORE=./server/test-artifacts \
+# 2. 启动服务端（Solana mainnet 配置）
+DNACLOUD_MERCHANT_ADDRESS=AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com \
+SOLANA_NETWORK=solana \
+SOLANA_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
-  java -jar server/target/dnacloud-server-1.0.0-SNAPSHOT.jar &
+  java -jar server/target/dnacloud-server-1.0.0-SNAPSHOT.jar --server.port=18089
 
 # 3. 健康检查
-sleep 8 && curl -s http://localhost:8089/actuator/health
+curl -s http://localhost:18089/actuator/health
 
-# 4. 测试完整安装流程
-mkdir -p /tmp/test-project && cd /tmp/test-project
-DNACLOUD_LOCAL_TEST=true \
-  node /path/to/DNA/packages/cli/dist/index.js install trading-master-dna \
-  --marketplace-url http://localhost:8089 -y
+# 4. 测试 402 响应
+curl -si http://localhost:18089/v1/dna/trading-master-dna/versions/1.0.0/artifact
 ```
