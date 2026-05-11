@@ -1,6 +1,6 @@
 {
   "name": "@soldnacloud/mcp-server",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "description": "DNAcloud MCP server — exposes marketplace search to Claude Code",
   "main": "./dist/index.js",
@@ -16,7 +16,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@soldnacloud/schema": "workspace:*",
+    "@soldnacloud/schema": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.10.2",
     "zod": "^3.23.8"
   },
