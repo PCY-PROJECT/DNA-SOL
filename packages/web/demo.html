@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNAcloud — Agent DNA Marketplace on Solana</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        sol: {
+          purple: '#9945FF',
+          green: '#14F195',
+          blue: '#00C2FF',
+          dark: '#080B14',
+          card: '#0D1117',
+          border: '#1E2D3D',
+        }
+      },
+      fontFamily: { mono: ['JetBrains Mono', 'monospace'] }
+    }
+  }
+}
+</script>
+<style>
+  * { font-family: 'Inter', system-ui, sans-serif; }
+  body { background: #080B14; color: #E2E8F0; }
+  .sol-gradient-text {
+    background: linear-gradient(135deg,#9945FF,#14F195);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .sol-gradient-bg { background: linear-gradient(135deg,#9945FF,#14F195); }
+  .glass-card { background: rgba(13,17,23,0.85); backdrop-filter: blur(20px); }
+  .bg-grid {
+    background-image: linear-gradient(rgba(153,69,255,0.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(153,69,255,0.04) 1px,transparent 1px);
+    background-size: 48px 48px;
+  }
+  .terminal-pre { font-family: 'JetBrains Mono', monospace; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0D1117; }
+  ::-webkit-scrollbar-thumb { background: #1E2D3D; border-radius: 2px; }
+  @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+  .float { animation: float 5s ease-in-out infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+const PACKAGES = [
+  {
+    id:'trading-master-dna', name:'Trading Master DNA', author:'DNAcloud Official',
+    tag:'official', domain:'trading', version:'1.0.0', price:'0.001',
+    score:98, installs:142, stars:4.9,
+    desc:'完整交易工作流：市场分析、仓位管理、风控、下单预览和复盘。',
+    longDesc:'为 Claude Code 安装完整的交易工作流能力。包含 5 个专业 Agents、5 个 Commands、3 个 MCP Server（市场数据/账户/下单）、交易守卫 Hook 和风控规则。',
+    capabilities:['market_analysis','position_management','strategy_workflow','risk_control','order_preview','trade_journal'],
+    components:{skills:1,agents:5,commands:5,mcp:3,hooks:1,rules:2},
+    notGuaranteed:['profitability','win_rate','investment_advice'],
+    payTo:'AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+  {
+    id:'contract-audit-dna', name:'Contract Audit DNA', author:'SecureLayer Labs',
+    tag:'community', domain:'security', version:'0.8.2', price:'0.005',
+    score:91, installs:89, stars:4.7,
+    desc:'智能合约安全审计能力，集成 Slither、Mythril 检测工作流。',
+    longDesc:'为 Claude Code 安装专业的智能合约安全审计能力。自动调用 Slither/Mythril 扫描工具，生成结构化审计报告。',
+    capabilities:['vulnerability_scan','audit_report','gas_optimization','reentrancy_detection'],
+    components:{skills:1,agents:3,commands:4,mcp:2,hooks:0,rules:1},
+    notGuaranteed:[],
+    payTo:'DkEH7mYmfJfNBXEkY3PJSB7LhPYvFVzBVzqyYN2Aa4d',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+  {
+    id:'kol-assistant-dna', name:'KOL Assistant DNA', author:'CryptoContent Studio',
+    tag:'community', domain:'content', version:'1.2.0', price:'0.002',
+    score:87, installs:234, stars:4.5,
+    desc:'加密 KOL 内容创作助手，Twitter 线程、市场评论、行情解读。',
+    longDesc:'为 Claude Code 安装加密 KOL 内容创作能力。专精 Web3 叙事、市场情绪分析和多平台内容适配。',
+    capabilities:['content_creation','market_commentary','thread_writer','sentiment_analysis'],
+    components:{skills:1,agents:2,commands:6,mcp:1,hooks:0,rules:1},
+    notGuaranteed:[],
+    payTo:'H9nS3vF2Km5J1kTqRW4uL8pXcMnDjsYbEo7ZVgNtPqA',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+  {
+    id:'research-analyst-dna', name:'Research Analyst DNA', author:'DNAcloud Official',
+    tag:'official', domain:'research', version:'0.9.0', price:'0.003',
+    score:95, installs:67, stars:4.8,
+    desc:'专业投研分析能力包，链上数据分析、项目尽调、宏观分析。',
+    longDesc:'为 Claude Code 安装专业投研分析能力，集成链上数据 MCP、新闻聚合和结构化报告生成。',
+    capabilities:['on_chain_analysis','project_due_diligence','macro_analysis','report_generation'],
+    components:{skills:1,agents:4,commands:5,mcp:3,hooks:0,rules:2},
+    notGuaranteed:['investment_advice'],
+    payTo:'AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+  {
+    id:'defi-operator-dna', name:'DeFi Operator DNA', author:'YieldLabs',
+    tag:'community', domain:'defi', version:'0.5.1', price:'0.008',
+    score:83, installs:45, stars:4.3,
+    desc:'DeFi 操作能力包，LP 管理、收益策略、跨链桥接工作流。',
+    longDesc:'为 Claude Code 安装 DeFi 协议操作能力。支持 Uniswap V3、Aave、Curve 等主流协议的 LP 管理和收益优化。',
+    capabilities:['lp_management','yield_optimization','bridge_workflow','defi_analytics'],
+    components:{skills:1,agents:3,commands:7,mcp:4,hooks:1,rules:3},
+    notGuaranteed:['yield_guarantee'],
+    payTo:'BcRtY7NpQs3WvKm2UjXoLhDa5FePgA1nMbZqVwE4Tkc',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+  {
+    id:'nft-curator-dna', name:'NFT Curator DNA', author:'PixelDAO',
+    tag:'community', domain:'nft', version:'1.1.0', price:'0.001',
+    score:79, installs:178, stars:4.2,
+    desc:'NFT 市场分析和策展能力，稀有度分析、地板价监控、藏品鉴定。',
+    longDesc:'为 Claude Code 安装 NFT 市场分析能力。支持 Solana/ETH NFT 稀有度排名、地板价追踪和交易信号。',
+    capabilities:['rarity_analysis','floor_monitoring','collection_research'],
+    components:{skills:1,agents:2,commands:4,mcp:2,hooks:0,rules:1},
+    notGuaranteed:[],
+    payTo:'GfTnS8kUv4QpWr3YmXhoCa2LeDiN9bMzVjKxEq5PwAl',
+    mint:'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  },
+];
+
+// ── Navbar ────────────────────────────────────────────────────────────────────
+function Navbar({ page, setPage }) {
+  return (
+    <nav style={{background:'rgba(8,11,20,0.85)',backdropFilter:'blur(20px)'}}
+         className="fixed top-0 left-0 right-0 z-50 border-b border-sol-border/50">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <button onClick={()=>setPage('home')} className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg sol-gradient-bg flex items-center justify-center text-black font-black text-sm">🧬</div>
+          <span className="font-bold text-lg">DNA<span className="sol-gradient-text">cloud</span></span>
+          <span className="hidden sm:inline text-xs font-mono text-sol-green/70 border border-sol-green/25 rounded px-1.5 py-0.5">on Solana</span>
+        </button>
+        <div className="flex items-center gap-1">
+          {[['home','首页'],['marketplace','市场'],['creator','创作者']].map(([p,l])=>(
+            <button key={p} onClick={()=>setPage(p)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${page===p?'bg-white/10 text-white':'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sol-purple/10 border border-sol-purple/30 text-sol-purple text-sm font-mono hover:bg-sol-purple/20 transition-all">
+          <span>$</span><span className="hidden sm:inline">dnacloud init</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+// ── Home Page ─────────────────────────────────────────────────────────────────
+function HomePage({ setPage }) {
+  const FLOW = [
+    {icon:'💬',label:'自然语言',desc:'说"我要一个交易大师"'},
+    {icon:'🔍',label:'搜索市场',desc:'Agent 搜索 DNA Marketplace'},
+    {icon:'⚡',label:'x402 支付',desc:'OnchainOS Solana USDC'},
+    {icon:'✅',label:'链上验证',desc:'Server RPC 验证收款'},
+    {icon:'🧬',label:'安装 DNA',desc:'Skills/Agents/MCP 写入项目'},
+  ];
+
+  return (
+    <main className="pt-16">
+      {/* Hero */}
+      <section className="relative min-h-screen flex items-center overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div style={{background:'radial-gradient(ellipse at 50% 40%, rgba(153,69,255,0.08) 0%, transparent 70%)'}} className="absolute inset-0" />
+          <div style={{background:'radial-gradient(ellipse at 20% 60%, rgba(20,241,149,0.05) 0%, transparent 60%)'}} className="absolute inset-0" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 py-24 relative w-full">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-sol-green/30 bg-sol-green/5 text-sol-green text-sm font-mono mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-sol-green pulse-dot" />
+              Built on Solana · x402 Payment Protocol · Claude Code
+            </div>
+            <h1 className="text-5xl sm:text-7xl font-black tracking-tight mb-6 leading-tight">
+              一句话，继承<br/><span className="sol-gradient-text">高手 DNA</span>
+            </h1>
+            <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+              DNAcloud 是 Claude Code 的 Agent DNA 市场。用户说出想要的专家，AI 通过{' '}
+              <span className="text-sol-purple font-medium">x402 on Solana</span> 自动完成购买、安装、激活。
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+              <button onClick={()=>setPage('marketplace')}
+                className="group flex items-center gap-2 px-6 py-3 rounded-xl sol-gradient-bg text-black font-bold text-lg hover:opacity-90 transition-all">
+                浏览 DNA 市场 →
+              </button>
+              <div className="flex items-center gap-2 px-5 py-3 rounded-xl border border-sol-border glass-card font-mono text-sm text-slate-300">
+                <span className="text-sol-green">$</span> dnacloud init
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-lg mx-auto">
+              {[['5+','Agents installed'],['5+','Commands'],['3','MCP Servers'],['<3s','Install time']].map(([v,l])=>(
+                <div key={l} className="glass-card rounded-xl p-4 text-center border border-sol-border">
+                  <div className="text-2xl font-black sol-gradient-text">{v}</div>
+                  <div className="text-xs text-slate-500 mt-1">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Payment Flow */}
+      <section className="py-24 border-t border-sol-border/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-14">
+            <div className="text-sol-purple text-sm font-mono mb-3">⚡ x402 Payment Protocol on Solana</div>
+            <h2 className="text-3xl font-bold">端到端全自动支付安装</h2>
+            <p className="text-slate-400 mt-3 max-w-lg mx-auto text-sm">无需手动打开钱包。Agent 直接处理 HTTP 402，完成 Solana USDC 支付，服务端 RPC 验证上链。</p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-0 flex-wrap">
+            {FLOW.map((step,i)=>(
+              <div key={i} className="flex items-center">
+                <div className="flex flex-col items-center text-center w-36 py-2">
+                  <div className="w-14 h-14 rounded-2xl glass-card border border-sol-border flex items-center justify-center text-2xl mb-3 float"
+                       style={{animationDelay:`${i*0.4}s`}}>{step.icon}</div>
+                  <div className="font-semibold text-sm">{step.label}</div>
+                  <div className="text-xs text-slate-500 mt-1 leading-relaxed">{step.desc}</div>
+                </div>
+                {i<FLOW.length-1 && <span className="text-sol-border mx-2 hidden sm:block text-lg">›</span>}
+              </div>
+            ))}
+          </div>
+          {/* Terminal */}
+          <div className="mt-14 max-w-3xl mx-auto glass-card rounded-2xl border border-sol-border p-5 font-mono text-sm">
+            <div className="flex items-center gap-2 mb-4 text-slate-500 text-xs">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" /><div className="w-3 h-3 rounded-full bg-yellow-500/60" /><div className="w-3 h-3 rounded-full bg-green-500/60" />
+              <span className="ml-1">x402 payment flow · live demo</span>
+            </div>
+            <div className="space-y-1.5 text-slate-400 text-xs leading-relaxed">
+              <div className="text-slate-500"># 1. Client 请求 artifact</div>
+              <div><span className="text-sol-blue">GET</span> /v1/dna/trading-master-dna/versions/1.0.0/artifact</div>
+              <div className="pl-3 text-yellow-400">← 402 Payment Required</div>
+              <div className="pl-3 text-slate-500">{'{ payTo:"AY5669...", mint:"EPjFW...", amount_atomic:"1000" }'}</div>
+              <div className="mt-1 text-slate-500"># 2. OnchainOS 发送 USDC on Solana</div>
+              <div><span className="text-sol-green">$</span> onchainos wallet send --chain solana --amt 10000 --to AY5669...</div>
+              <div className="pl-3 text-sol-green">← txHash: 4mpR5QQg6dD6dCmboS1zzF8G9Egbr...</div>
+              <div className="mt-1 text-slate-500"># 3. 携带凭据重试</div>
+              <div><span className="text-sol-blue">GET</span> /artifact <span className="text-slate-600">X-PAYMENT: eyJwcm92aWRlci...</span></div>
+              <div className="pl-3"><span className="text-sol-green">← 200 OK</span> · artifact + paymentReceipt ✓</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured */}
+      <section className="py-20 border-t border-sol-border/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <div className="text-sol-green text-sm font-mono mb-2">Featured</div>
+              <h2 className="text-3xl font-bold">精选 DNA 能力包</h2>
+            </div>
+            <button onClick={()=>setPage('marketplace')} className="text-sm text-slate-400 hover:text-white transition-colors">全部 ›</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {PACKAGES.slice(0,3).map(pkg=>(
+              <MiniCard key={pkg.id} pkg={pkg} onClick={()=>setPage('marketplace')} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* For Creators */}
+      <section className="py-20 border-t border-sol-border/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+            <div>
+              <div className="text-sol-purple text-sm font-mono mb-4">For Creators</div>
+              <h2 className="text-3xl font-bold mb-6">打包你的专业能力，<br/><span className="sol-gradient-text">让 AI 继承你的 DNA</span></h2>
+              <div className="space-y-5">
+                {[
+                  {t:'标准化打包',d:'manifest.json 定义 Skills/Agents/Commands/MCP/Hooks，一键打包成 DNA zip。'},
+                  {t:'自动安全审核',d:'上传后自动扫描密钥、危险命令、路径注入，评分展示给买家。'},
+                  {t:'Solana 自动结算',d:'买家 x402 支付进入平台收款地址，payout worker 异步结算到创作者 Solana 钱包。'},
+                ].map(item=>(
+                  <div key={item.t} className="flex gap-4">
+                    <div className="w-8 h-8 rounded-lg bg-sol-purple/10 border border-sol-purple/20 flex items-center justify-center text-sol-purple shrink-0 mt-0.5 text-sm">✦</div>
+                    <div><div className="font-semibold mb-0.5">{item.t}</div><div className="text-sm text-slate-400 leading-relaxed">{item.d}</div></div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setPage('creator')}
+                className="mt-7 flex items-center gap-2 px-5 py-2.5 rounded-xl border border-sol-purple/40 text-sol-purple hover:bg-sol-purple/10 transition-all text-sm font-medium">
+                ↑ 上传我的 DNA 包
+              </button>
+            </div>
+            <div className="glass-card rounded-2xl border border-sol-border p-5 font-mono text-xs">
+              <div className="flex items-center gap-2 mb-4 text-slate-500">
+                <div className="w-3 h-3 rounded-full bg-red-500/60"/><div className="w-3 h-3 rounded-full bg-yellow-500/60"/><div className="w-3 h-3 rounded-full bg-green-500/60"/>
+                <span className="ml-1">creator workflow</span>
+              </div>
+              <div className="space-y-1.5 text-slate-300 leading-relaxed">
+                <div><span className="text-sol-green">$</span> dnacloud validate my-dna.zip</div>
+                <div className="pl-3 text-slate-500">Validating package structure...</div>
+                <div className="pl-3"><span className="text-sol-green">✓</span> manifest.json valid</div>
+                <div className="pl-3"><span className="text-sol-green">✓</span> No secrets detected</div>
+                <div className="pl-3"><span className="text-sol-green">✓</span> Score: <span className="text-sol-green font-bold">96/100</span></div>
+                <div className="mt-2"><span className="text-sol-green">$</span> dnacloud upload my-dna.zip \</div>
+                <div className="pl-3">--payout-address AY5669...</div>
+                <div className="pl-3 text-sol-green">✓ Published! ID: my-dna</div>
+                <div className="mt-2"><span className="text-sol-green">$</span> dnacloud creator earnings AY5669...</div>
+                <div className="pl-3">Total: <span className="text-sol-green font-bold">0.042 USDC</span></div>
+                <div className="pl-3 text-slate-500">Last payout: 2026-05-11</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Tech */}
+      <section className="py-16 border-t border-sol-border/30">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <div className="text-slate-600 text-sm mb-6">Powered by</div>
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            {[
+              {n:'Solana',c:'#9945FF'},{n:'x402 Protocol',c:'#14F195'},
+              {n:'OKX OnchainOS',c:'#00C2FF'},{n:'Claude Code',c:'#D97706'},
+              {n:'Spring Boot',c:'#6DB33F'},{n:'USDC',c:'#2775CA'},
+            ].map(t=>(
+              <div key={t.n} className="flex items-center gap-2 text-sm text-slate-500">
+                <span className="w-2 h-2 rounded-full" style={{background:t.c}}/>
+                {t.n}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="py-8 border-t border-sol-border/30">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-600 text-sm">
+          <span>🧬 DNAcloud · Solana Hackathon 2026</span>
+          <span className="font-mono text-xs">一句话，继承高手 DNA。</span>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+// ── Marketplace ───────────────────────────────────────────────────────────────
+function MarketplacePage() {
+  const [search, setSearch] = useState('');
+  const [domain, setDomain] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [buyStep, setBuyStep] = useState('idle');
+  const [copied, setCopied] = useState(false);
+
+  const filtered = PACKAGES.filter(p => {
+    const ms = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.capabilities.some(c=>c.includes(search.toLowerCase()));
+    const md = domain==='all' || p.domain===domain;
+    return ms && md;
+  });
+
+  const copy = (t) => { navigator.clipboard.writeText(t); setCopied(true); setTimeout(()=>setCopied(false),2000); };
+
+  return (
+    <div className="pt-16 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">DNA Marketplace</h1>
+          <p className="text-slate-400 text-sm">浏览并安装专业 Agent DNA 能力包，通过 x402 on Solana 一键支付</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+            <input type="text" placeholder="搜索 DNA 包..." value={search} onChange={e=>setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-card border border-sol-border text-sm focus:outline-none focus:border-sol-purple/50 transition-colors bg-transparent"/>
+          </div>
+          <div className="flex gap-2 overflow-x-auto">
+            {['all','trading','security','content','research','defi','nft'].map(d=>(
+              <button key={d} onClick={()=>setDomain(d)}
+                className={`shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all capitalize border ${
+                  domain===d?'bg-sol-purple/20 text-sol-purple border-sol-purple/40':'text-slate-400 border-sol-border hover:text-white'
+                }`}>{d==='all'?'All':d}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="text-xs text-slate-600 mb-5 font-mono">{filtered.length} packages found</div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map(pkg=>(
+            <PkgCard key={pkg.id} pkg={pkg} onSelect={()=>{setSelected(pkg);setBuyStep('idle');}} />
+          ))}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+             style={{background:'rgba(0,0,0,0.75)',backdropFilter:'blur(8px)'}}
+             onClick={e=>{if(e.target===e.currentTarget)setSelected(null);}}>
+          <div className="w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto glass-card rounded-t-2xl sm:rounded-2xl border border-sol-border">
+            <div className="sticky top-0 glass-card border-b border-sol-border px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl sol-gradient-bg flex items-center justify-center text-black font-bold">🤖</div>
+                <div>
+                  <h2 className="font-bold">{selected.name}</h2>
+                  <div className="text-xs text-slate-500">v{selected.version} · by {selected.author}</div>
+                </div>
+              </div>
+              <button onClick={()=>setSelected(null)} className="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 space-y-5">
+              <p className="text-slate-300 text-sm leading-relaxed">{selected.longDesc}</p>
+
+              <div className="grid grid-cols-3 gap-3">
+                {[[selected.score,'Safety Score','text-sol-green'],[selected.installs,'Installs','text-sol-purple'],['★'+selected.stars,'Rating','text-yellow-400']].map(([v,l,c])=>(
+                  <div key={l} className="glass-card rounded-xl p-3 text-center border border-sol-border">
+                    <div className={`text-xl font-black ${c}`}>{v}</div>
+                    <div className="text-xs text-slate-500">{l}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-600 font-mono mb-2">COMPONENTS</div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(selected.components).filter(([,v])=>v>0).map(([k,v])=>(
+                    <div key={k} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-sol-border text-sm">
+                      <span className="text-sol-green font-bold">{v}</span><span className="text-slate-400 capitalize">{k}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-slate-600 font-mono mb-2">CAPABILITIES</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selected.capabilities.map(c=>(
+                    <span key={c} className="px-2 py-1 rounded-md bg-sol-purple/10 border border-sol-purple/20 text-sol-purple text-xs font-mono">{c}</span>
+                  ))}
+                </div>
+              </div>
+
+              {selected.notGuaranteed.length>0 && (
+                <div className="flex gap-2 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                  <span className="text-yellow-400">⚠</span>
+                  <p className="text-xs text-yellow-400/80">不保证：{selected.notGuaranteed.join('、')}。所有分析仅供参考。</p>
+                </div>
+              )}
+
+              {/* Payment */}
+              <div className="rounded-xl border border-sol-green/20 bg-sol-green/5 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Price</div>
+                    <div className="text-2xl font-black sol-gradient-text">{selected.price} USDC</div>
+                    <div className="text-xs text-slate-600 mt-1 font-mono">on Solana · via x402</div>
+                  </div>
+                  <div className="text-3xl">💰</div>
+                </div>
+
+                {buyStep==='idle' && (
+                  <button onClick={()=>setBuyStep('payment')}
+                    className="w-full py-3 rounded-xl sol-gradient-bg text-black font-bold text-sm hover:opacity-90 transition-all">
+                    ⚡ 购买并安装 · x402 on Solana
+                  </button>
+                )}
+
+                {buyStep==='payment' && (
+                  <div className="space-y-3">
+                    <div className="text-xs text-slate-400">使用 OnchainOS 发送 {selected.price} USDC：</div>
+                    <div className="font-mono text-xs bg-black/40 rounded-lg p-3 break-all text-sol-green border border-sol-green/20">{selected.payTo}</div>
+                    <div className="glass-card rounded-lg border border-sol-border p-3 font-mono text-xs space-y-0.5 text-slate-300">
+                      <div>onchainos wallet send \</div>
+                      <div className="pl-2">--chain solana \</div>
+                      <div className="pl-2">--contract-token {selected.mint.slice(0,16)}... \</div>
+                      <div className="pl-2">--amt {Math.round(parseFloat(selected.price)*1000000)} \</div>
+                      <div className="pl-2">--to {selected.payTo.slice(0,18)}...</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={()=>setBuyStep('verifying')}
+                        className="flex-1 py-2.5 rounded-xl bg-sol-purple/20 border border-sol-purple/40 text-sol-purple text-sm font-medium hover:bg-sol-purple/30 transition-all">
+                        已完成支付，验证 →
+                      </button>
+                      <button onClick={()=>setBuyStep('idle')}
+                        className="px-4 py-2.5 rounded-xl bg-white/5 border border-sol-border text-slate-400 text-sm">取消</button>
+                    </div>
+                  </div>
+                )}
+
+                {buyStep==='verifying' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full border-2 border-sol-purple border-t-transparent spin"/>
+                      <span className="text-sm text-slate-300">Solana RPC 验证链上收款...</span>
+                    </div>
+                    <button onClick={()=>setBuyStep('done')}
+                      className="w-full py-2.5 rounded-xl sol-gradient-bg text-black font-bold text-sm">
+                      模拟验证通过 → 安装
+                    </button>
+                  </div>
+                )}
+
+                {buyStep==='done' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sol-green text-sm font-semibold">
+                      <span>✓</span> 支付已验证！运行以下命令安装：
+                    </div>
+                    <div className="flex items-center gap-2 bg-black/40 rounded-lg border border-sol-green/20 p-3">
+                      <code className="flex-1 text-xs font-mono text-sol-green">$ dnacloud install {selected.id}</code>
+                      <button onClick={()=>copy(`dnacloud install ${selected.id}`)}
+                        className="text-xs text-slate-500 hover:text-white transition-colors">
+                        {copied?'✓':'copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Creator Page ──────────────────────────────────────────────────────────────
+function CreatorPage() {
+  const [tab, setTab] = useState('upload');
+  const [step, setStep] = useState('idle');
+  const [addr, setAddr] = useState('');
+
+  return (
+    <div className="pt-16 min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Creator Dashboard</h1>
+          <p className="text-slate-400 text-sm">上传 DNA 能力包，设置 Solana 收款地址，按销售自动结算收益。</p>
+        </div>
+
+        <div className="flex gap-1 mb-8 p-1 glass-card rounded-xl border border-sol-border w-fit">
+          {[['upload','↑ 上传包'],['packages','📦 我的包'],['earnings','💰 收益']].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                tab===k?'bg-sol-purple/20 text-sol-purple border border-sol-purple/30':'text-slate-400 hover:text-white'
+              }`}>{l}
+            </button>
+          ))}
+        </div>
+
+        {tab==='upload' && (
+          <div className="max-w-2xl space-y-5">
+            <div onDragOver={e=>{e.preventDefault();}} onDrop={e=>{e.preventDefault();setStep('valid');}}
+              className={`rounded-2xl border-2 border-dashed p-10 text-center transition-all ${
+                step==='valid'||step==='done'?'border-sol-green/40 bg-sol-green/5':'border-sol-border hover:border-sol-purple/40'
+              }`}>
+              {step==='idle' && (
+                <div>
+                  <div className="text-4xl mb-3">📁</div>
+                  <div className="font-medium mb-1">拖拽 DNA zip 包到此处</div>
+                  <div className="text-sm text-slate-500 mb-4">或点击选择文件</div>
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sol-purple/10 border border-sol-purple/30 text-sol-purple text-sm hover:bg-sol-purple/20">
+                    选择文件 <input type="file" accept=".zip" className="hidden" onChange={()=>setStep('valid')}/>
+                  </label>
+                </div>
+              )}
+              {step==='valid' && (
+                <div className="text-left space-y-1.5 font-mono text-xs">
+                  <div className="flex items-center gap-2 text-sol-green font-semibold mb-3 text-sm">
+                    <span>✓</span> Validation Passed · my-dna-pack.zip · 2.3MB
+                  </div>
+                  {['manifest.json valid','install-plan.json found','No secrets detected','File types allowed','Payout address format valid','Score: 96/100'].map(c=>(
+                    <div key={c} className="flex items-center gap-2 text-slate-400">
+                      <span className="text-sol-green">✓</span>{c}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {step==='done' && (
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🎉</div>
+                  <div className="font-bold text-sol-green text-lg mb-1">发布成功！</div>
+                  <div className="text-sm text-slate-400">你的 DNA 包已上架市场</div>
+                </div>
+              )}
+            </div>
+
+            {(step==='valid') && (
+              <div className="glass-card rounded-2xl border border-sol-border p-5 space-y-4">
+                <div className="font-medium text-sm flex items-center gap-2">
+                  <span className="text-sol-purple">◎</span> Solana 收款地址
+                </div>
+                <input type="text" placeholder="Your Solana wallet address..." value={addr} onChange={e=>setAddr(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl glass-card border border-sol-border text-sm font-mono focus:outline-none focus:border-sol-purple/50 bg-transparent placeholder:text-slate-600"/>
+                <div className="text-xs text-slate-500 flex gap-2">
+                  <span className="text-sol-blue">ℹ</span>
+                  买家 x402 支付后，payout worker 将收益自动结算到此地址（USDC on Solana）。
+                </div>
+                <button onClick={()=>setStep('done')} disabled={!addr}
+                  className="w-full py-3 rounded-xl sol-gradient-bg text-black font-bold text-sm hover:opacity-90 disabled:opacity-40 transition-all">
+                  ↑ 发布到市场
+                </button>
+              </div>
+            )}
+
+            {/* Manifest template */}
+            <div className="glass-card rounded-2xl border border-sol-border p-5">
+              <div className="font-medium text-sm mb-4 text-slate-300">📄 manifest.json 格式</div>
+              <pre className="text-xs font-mono text-slate-400 leading-relaxed overflow-x-auto">{`{
+  "id": "my-dna-pack",
+  "name": "My DNA Pack",
+  "version": "1.0.0",
+  "packageType": "community-pack",
+  "price": {
+    "amount": "0.001",
+    "currency": "USDC",
+    "network": "solana"
+  },
+  "payout": {
+    "address": "YOUR_SOLANA_ADDRESS",
+    "currency": "USDC",
+    "network": "solana"
+  },
+  "components": {
+    "skills": ["skills/my-skill/SKILL.md"],
+    "agents": ["agents/my-agent.md"],
+    "commands": ["commands/my-cmd.md"]
+  }
+}`}</pre>
+            </div>
+          </div>
+        )}
+
+        {tab==='packages' && (
+          <div className="space-y-4">
+            <div className="glass-card rounded-2xl border border-sol-border p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold">Trading Master DNA</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-sol-green/10 border border-sol-green/30 text-sol-green">active</span>
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">v1.0.0 · trading-master-dna</div>
+                </div>
+                <span className="text-xs text-slate-500 cursor-pointer hover:text-white">↗ 查看</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[['142','总安装数','text-sol-purple'],['0.142 USDC','总收益','text-sol-green'],['0.021 USDC','待结算','text-yellow-400'],['2026-05-11','最近结算','text-slate-300']].map(([v,l,c])=>(
+                  <div key={l} className="bg-black/20 rounded-xl p-3 text-center">
+                    <div className={`font-bold text-sm ${c}`}>{v}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="glass-card rounded-2xl border border-dashed border-sol-border p-10 text-center">
+              <div className="text-3xl mb-3">📦</div>
+              <div className="text-slate-500 text-sm mb-4">还没有更多 DNA 包</div>
+              <button onClick={()=>setTab('upload')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sol-purple/10 border border-sol-purple/30 text-sol-purple text-sm hover:bg-sol-purple/20 transition-all">
+                ↑ 上传第一个 DNA 包
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tab==='earnings' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[['0.142 USDC','总收益','≈ $0.142','text-sol-green'],['0.021 USDC','待结算','下次结算 ~12h','text-sol-purple'],['3 次','总结算','自动结算到 Solana','text-sol-blue']].map(([v,t,s,c])=>(
+                <div key={t} className="glass-card rounded-2xl border border-sol-border p-5">
+                  <div className={`text-2xl font-black mb-0.5 ${c}`}>{v}</div>
+                  <div className="text-sm text-slate-400">{t}</div>
+                  <div className="text-xs text-slate-600 mt-0.5">{s}</div>
+                </div>
+              ))}
+            </div>
+            <div className="glass-card rounded-2xl border border-sol-border overflow-hidden">
+              <div className="px-5 py-4 border-b border-sol-border text-sm font-medium">💰 结算记录</div>
+              {[['2026-05-11','0.021','4mpR5QQg...woow'],['2026-05-10','0.018','3xkL2PPf...nmvv'],['2026-05-09','0.011','7ynM8QQr...pqss']].map(([d,a,tx])=>(
+                <div key={tx} className="px-5 py-4 flex items-center justify-between border-b border-sol-border/50 hover:bg-white/2">
+                  <div>
+                    <div className="font-mono text-sm text-slate-300">{d}</div>
+                    <div className="text-xs text-slate-600 font-mono">{tx}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-sol-green text-sm">+{a} USDC</div>
+                    <div className="flex items-center gap-1 justify-end mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sol-green"/>
+                      <span className="text-xs text-slate-500">settled</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-sol-blue/5 border border-sol-blue/20 text-xs text-slate-400">
+              <span className="text-sol-blue">ℹ</span>
+              payout worker 每小时运行一次。买家 x402 付款后，平台扣除 10% 手续费，余额结算到你的 Solana USDC 地址。
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MiniCard + PkgCard ────────────────────────────────────────────────────────
+function MiniCard({ pkg, onClick }) {
+  const tagStyle = pkg.tag==='official'
+    ? 'border-sol-green/30 text-sol-green bg-sol-green/5'
+    : 'border-sol-blue/30 text-sol-blue bg-sol-blue/5';
+  return (
+    <div onClick={onClick}
+      className="glass-card rounded-2xl border border-sol-border p-5 hover:border-sol-purple/40 transition-all cursor-pointer group">
+      <div className="flex items-start justify-between mb-3">
+        <span className={`text-xs font-mono px-2 py-0.5 rounded border capitalize ${tagStyle}`}>{pkg.tag}</span>
+        <span className="text-xs font-mono text-sol-green">{pkg.score}/100</span>
+      </div>
+      <h3 className="font-bold mb-1 group-hover:text-sol-purple transition-colors">{pkg.name}</h3>
+      <p className="text-xs text-slate-500 mb-3 line-clamp-2">{pkg.desc}</p>
+      <div className="flex flex-wrap gap-1 mb-3">
+        {pkg.capabilities.slice(0,2).map(c=>(
+          <span key={c} className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-slate-600 font-mono">{c}</span>
+        ))}
+      </div>
+      <div className="flex items-center justify-between pt-2 border-t border-sol-border">
+        <span className="font-bold sol-gradient-text text-sm">{pkg.price} USDC</span>
+        <span className="text-xs text-slate-500">{pkg.installs} installs</span>
+      </div>
+    </div>
+  );
+}
+
+function PkgCard({ pkg, onSelect }) {
+  const tagStyle = pkg.tag==='official'
+    ? 'border-sol-green/30 text-sol-green bg-sol-green/5'
+    : 'border-sol-blue/30 text-sol-blue bg-sol-blue/5';
+  return (
+    <div onClick={onSelect}
+      className="glass-card rounded-2xl border border-sol-border p-5 hover:border-sol-purple/40 transition-all cursor-pointer group">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-mono px-2 py-0.5 rounded border capitalize ${tagStyle}`}>{pkg.tag}</span>
+          <span className="text-xs text-slate-500 capitalize">{pkg.domain}</span>
+        </div>
+        <span className="text-xs font-mono text-sol-green">{pkg.score}/100</span>
+      </div>
+      <h3 className="font-bold mb-1 group-hover:text-sol-purple transition-colors">{pkg.name}</h3>
+      <p className="text-xs text-slate-500 mb-1">by {pkg.author}</p>
+      <p className="text-sm text-slate-400 mb-4 line-clamp-2 leading-relaxed">{pkg.desc}</p>
+      <div className="flex flex-wrap gap-1 mb-4">
+        {pkg.capabilities.slice(0,3).map(c=>(
+          <span key={c} className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-slate-500 font-mono">{c}</span>
+        ))}
+        {pkg.capabilities.length>3 && <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-slate-500">+{pkg.capabilities.length-3}</span>}
+      </div>
+      <div className="flex items-center justify-between pt-3 border-t border-sol-border">
+        <div>
+          <span className="font-bold sol-gradient-text text-sm">{pkg.price} USDC</span>
+          <span className="text-xs text-slate-600 ml-1">/ install</span>
+        </div>
+        <span className="text-xs text-slate-500">{pkg.installs} installs ›</span>
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('home');
+  return (
+    <div className="min-h-screen bg-grid">
+      <Navbar page={page} setPage={setPage}/>
+      {page==='home' && <HomePage setPage={setPage}/>}
+      {page==='marketplace' && <MarketplacePage/>}
+      {page==='creator' && <CreatorPage/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
