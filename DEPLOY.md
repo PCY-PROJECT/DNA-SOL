@@ -111,7 +111,7 @@ ssh $SERVER "systemctl restart solDna && sleep 3 && curl -s http://localhost:809
 # ─── 服务基础 ─────────────────────────────────────────────────────
 SERVER_PORT=8093
 # 公网地址，用于拼接 artifact 下载链接（必须与实际访问地址一致）
-DNACLOUD_BASE_URL=https://finderfund.cn/solDna
+DNACLOUD_BASE_URL=https://finderfund.cn/solDna/api
 
 # ─── 数据库（绝对路径，避免与同服务器其他项目冲突）─────────────
 # H2 file 模式只允许一个进程持有锁，必须用绝对路径隔离
@@ -141,7 +141,7 @@ DNACLOUD_ADMIN_API_KEY=<32字节随机值>
 DNACLOUD_SIGNING_KEY=<64字节随机值>
 
 # ─── 业务参数 ─────────────────────────────────────────────────────
-DNACLOUD_CORS_ORIGINS=https://finderfund.cn/solDna
+DNACLOUD_CORS_ORIGINS=https://finderfund.cn
 DNACLOUD_PLATFORM_FEE_RATE=0.10
 # 最小结算金额（USDC atomic units，1 USDC = 1,000,000）
 DNACLOUD_MINIMUM_PAYOUT=10000
@@ -180,15 +180,15 @@ apt-get install -y nginx certbot python3-certbot-nginx
 ```bash
 ## ⚠️ 同服务器多项目部署说明
 ## finderfund.cn 已有其他项目在运行，不要覆盖整个 server {} 块。
-## 只需在现有 finderfund.cn 的 443 server 块中追加下面的 location /solDna/ 段。
+## 只需在现有 finderfund.cn 的 443 server 块中追加下面的 location /solDna/api/ 段。
 
 # 在现有 nginx 配置文件（通常 /etc/nginx/sites-available/finderfund.cn）中追加：
 cat >> /etc/nginx/sites-available/finderfund.cn << 'EOF'
 
     # ── DNAcloud SOL Marketplace ────────────────────────────────
-    # 路径 /dna/ 独占转发给 DNA-SOL 服务（8093 端口）
-    # 前缀 /solDna 会被去掉：/solDna/v1/dna/search → /v1/dna/search
-    location /solDna/ {
+    # /solDna/api/ 独占转发给 DNA-SOL 服务（8093 端口）
+    # /solDna/api 前缀完整剥离：/solDna/api/v1/dna/search → /v1/dna/search
+    location /solDna/api/ {
         proxy_pass         http://127.0.0.1:8093/;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
@@ -244,13 +244,13 @@ node packages/cli/dist/index.js validate trading-master-dna-1.0.1.zip
 ```bash
 node packages/cli/dist/index.js upload trading-master-dna-1.0.1.zip \
   --payout-address AY5669hoJZMxWnaUGtbefiRj4btzXX5iR8Kh9Mtnc4KV \
-  --marketplace-url https://finderfund.cn/solDna
+  --marketplace-url https://finderfund.cn/solDna/api
 ```
 
 ### 6.4 验证上传成功
 
 ```bash
-curl -s "https://finderfund.cn/solDna/v1/dna/trading-master-dna" | python3 -m json.tool | grep -E '"version"|"currency"|"network"'
+curl -s "https://finderfund.cn/solDna/api/v1/dna/trading-master-dna" | python3 -m json.tool | grep -E '"version"|"currency"|"network"'
 # 期望：
 #   "version": "1.0.1"
 #   "currency": "USDC"
@@ -296,7 +296,7 @@ dnacloud init
 ### 8.1 服务端冒烟测试
 
 ```bash
-BASE=https://finderfund.cn/solDna
+BASE=https://finderfund.cn/solDna/api
 
 # 健康检查
 curl -s $BASE/actuator/health
@@ -334,7 +334,7 @@ mkdir /tmp/test-install && cd /tmp/test-install
 
 # init
 node /path/to/DNA/packages/cli/dist/index.js init \
-  --marketplace-url https://finderfund.cn/solDna
+  --marketplace-url https://finderfund.cn/solDna/api
 
 # 查看生成的文件
 find . -type f | sort
@@ -371,7 +371,7 @@ TX_HASH="<上一步返回的 txHash>"
 PAYER="<你的 Solana 钱包地址>"
 CRED=$(echo -n "{\"provider\":\"solana-onchain\",\"txHash\":\"$TX_HASH\",\"nonce\":\"test\",\"network\":\"solana\",\"payer\":\"$PAYER\"}" | base64)
 
-curl -si "https://finderfund.cn/solDna/v1/dna/trading-master-dna/versions/1.0.0/artifact" \
+curl -si "https://finderfund.cn/solDna/api/v1/dna/trading-master-dna/versions/1.0.0/artifact" \
   -H "X-PAYMENT: $CRED"
 # 期望：HTTP 200 · body 包含 downloadUrl + paymentReceipt
 ```
@@ -421,11 +421,11 @@ scp dnacloud-server-*.jar root@163.7.3.34:/opt/soldna/dnacloud-server.jar
 ssh root@163.7.3.34 "systemctl restart solDna"
 
 # 手动触发 payout（结算创作者收益）
-curl -X POST https://finderfund.cn/solDna/v1/creator/admin/payouts/run-once \
+curl -X POST https://finderfund.cn/solDna/api/v1/creator/admin/payouts/run-once \
   -H "X-Admin-Api-Key: <DNACLOUD_ADMIN_API_KEY>"
 
 # 查看某个创作者收益
-curl "https://finderfund.cn/solDna/v1/creator/earnings?wallet=<solana-address>"
+curl "https://finderfund.cn/solDna/api/v1/creator/earnings?wallet=<solana-address>"
 ```
 
 ---
