@@ -37,7 +37,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home mvn packag
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home java -jar target/dnacloud-server-1.0.0-SNAPSHOT.jar
 ```
 
-**首次设置**：复制 `cp .env.example .env` 并填写 `OKX_API_KEY`、`DNACLOUD_PAYMENT_ADDRESS`、`DNACLOUD_SIGNING_KEY`。
+**首次设置**：复制 `cp .env.example .env` 并填写 `DNACLOUD_MERCHANT_ADDRESS`、`DNACLOUD_SIGNING_KEY`、`SOLANA_RPC_URL`。
 
 ---
 

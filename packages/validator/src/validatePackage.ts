@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import semver from 'semver';
-import type { ValidationReport, ValidationIssue, DnaManifest } from '@dnacloud/schema';
+import type { ValidationReport, ValidationIssue, DnaManifest } from '@soldnacloud/schema';
 import { scanContent } from './scanSecrets.js';
 
 const ALLOWED_EXTENSIONS = new Set(['.md', '.json', '.yaml', '.yml', '.txt', '.png', '.svg']);
 
-const SUPPORTED_NETWORKS = new Set(['eip155:196', 'xlayer', 'eip155:5000', 'mantle']);
-const SUPPORTED_CURRENCIES = new Set(['USDG', 'USDT', 'USDC']);
+const SUPPORTED_NETWORKS = new Set(['solana', 'solana-devnet']);
+const SUPPORTED_CURRENCIES = new Set(['USDC']);
 
 export interface ValidateOptions {
   requirePayout?: boolean;

@@ -10,8 +10,8 @@ Steps:
 5. Optionally run: dnacloud creator packages <wallet_address> to see uploaded packages
 
 Information shown:
-- Total gross sales (in USDT)
-- Platform fee (20%)
+- Total gross sales (in USDC)
+- Platform fee (10%)
 - Pending payout (not yet transferred)
 - Paid payout (already transferred on-chain with tx hash)
 - Per-package revenue breakdown

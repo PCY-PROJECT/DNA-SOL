@@ -1,4 +1,4 @@
-import type { DnaSearchResult, DnaManifest } from '@dnacloud/schema';
+import type { DnaSearchResult, DnaManifest } from '@soldnacloud/schema';
 
 export interface MarketplaceClientConfig {
   baseUrl: string;

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { Verifier } from '../installer/Verifier.js';
-import type { DnaVerifyResult } from '@dnacloud/schema';
+import type { DnaVerifyResult } from '@soldnacloud/schema';
 
 export async function verifyCommand(packageId?: string): Promise<void> {
   const verifier = new Verifier(process.cwd());

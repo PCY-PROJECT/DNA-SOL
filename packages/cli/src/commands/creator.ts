@@ -3,7 +3,7 @@ import ora from 'ora';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DNACLOUD_DIR } from '../installer/paths.js';
-import type { CreatorEarnings } from '@dnacloud/schema';
+import type { CreatorEarnings } from '@soldnacloud/schema';
 
 function getBaseUrl(cwd: string, override?: string): string {
   const configPath = path.join(cwd, DNACLOUD_DIR, 'config.json');

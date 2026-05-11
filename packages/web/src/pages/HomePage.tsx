@@ -1,6 +1,6 @@
 import {
   Zap, Shield, Package, ChevronRight, ArrowRight,
-  Terminal, CheckCircle2, Coins, Code2, Bot, Layers
+  Terminal, CheckCircle2, Coins, Code2, Bot, Layers, Upload
 } from 'lucide-react'
 import type { Page } from '../App'
 

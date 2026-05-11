@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Verifier } from '../installer/Verifier.js';
 import { LOCK_FILE } from '../installer/paths.js';
-import type { DnaLockFile } from '@dnacloud/schema';
+import type { DnaLockFile } from '@soldnacloud/schema';
 
 export async function statusCommand(): Promise<void> {
   console.log(chalk.bold('\ndnacloud status\n'));

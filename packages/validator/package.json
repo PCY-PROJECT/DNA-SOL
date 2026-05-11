@@ -1,5 +1,5 @@
 {
-  "name": "@dnacloud/validator",
+  "name": "@soldnacloud/validator",
   "version": "0.6.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@dnacloud/schema": "^1.0.0",
+    "@soldnacloud/schema": "workspace:*",
     "semver": "^7.6.0"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { DNACLOUD_DIR } from '../installer/paths.js';
-import type { UploadSession, UploadResult, ValidationReport } from '@dnacloud/schema';
+import type { UploadSession, UploadResult, ValidationReport } from '@soldnacloud/schema';
 
 interface UploadOptions {
   payoutAddress: string;
@@ -129,7 +129,7 @@ export async function validateLocalPackage(packagePath: string): Promise<void> {
 
   try {
     // 本地解压并验证
-    const { validateExtractedPackage } = await import('@dnacloud/validator');
+    const { validateExtractedPackage } = await import('@soldnacloud/validator');
     const tmpDir = `/tmp/dnacloud-validate-${Date.now()}`;
     fs.mkdirSync(tmpDir, { recursive: true });
 

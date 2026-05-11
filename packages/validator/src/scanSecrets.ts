@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '@dnacloud/schema';
+import type { ValidationIssue } from '@soldnacloud/schema';
 
 const SECRET_PATTERNS: Array<{ pattern: RegExp; code: string; message: string }> = [
   {

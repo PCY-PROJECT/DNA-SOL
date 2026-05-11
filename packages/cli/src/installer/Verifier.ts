@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { DnaVerifyResult, DnaLockFile } from '@dnacloud/schema';
+import type { DnaVerifyResult, DnaLockFile } from '@soldnacloud/schema';
 import { DNACLOUD_DIR, LOCK_FILE } from './paths.js';
 
 export class Verifier {

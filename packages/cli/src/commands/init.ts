@@ -58,7 +58,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
   const localMcpPath = path.resolve(import.meta.dirname, '../../../mcp-server/dist/index.js');
   const mcpEntry = fs.existsSync(localMcpPath)
     ? { command: 'node', args: [localMcpPath], env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl } }
-    : { command: 'npx', args: ['-y', '@dnacloud/mcp-server'], env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl } };
+    : { command: 'npx', args: ['-y', '@soldnacloud/mcp-server'], env: { DNACLOUD_MARKETPLACE_URL: options.marketplaceUrl } };
 
   servers['dnacloud-marketplace'] = mcpEntry;
   mcpConfig.mcpServers = servers;
@@ -94,7 +94,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
   spin.text = '安装 Bootstrap skill 文件...';
   // 优先顺序：
-  // 1. npm 包内置 bootstrap/（生产：npm install -g @dnacloud/cli）
+  // 1. npm 包内置 bootstrap/（生产：npm install -g @soldnacloud/cli）
   // 2. 本地 repo 的 dna-packages/bootstrap/.claude（开发模式）
   const npmBuiltinBootstrap = path.resolve(import.meta.dirname, '../../bootstrap');
   const repoBootstrap = path.resolve(import.meta.dirname, '../../../../dna-packages/bootstrap/.claude');

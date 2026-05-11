@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import AdmZip from 'adm-zip';
 import { createHash } from 'node:crypto';
-import type { DnaManifest, DnaInstallPlan, DnaLockFile } from '@dnacloud/schema';
-import { assertManifest } from '@dnacloud/schema';
+import type { DnaManifest, DnaInstallPlan, DnaLockFile } from '@soldnacloud/schema';
+import { assertManifest } from '@soldnacloud/schema';
 import { DNACLOUD_DIR, LOCK_FILE } from './paths.js';
 import type { ArtifactData } from '../marketplace/MarketplaceClient.js';
 
