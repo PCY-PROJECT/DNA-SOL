@@ -197,8 +197,9 @@ function HomePage({ setPage }) {
                 className="group flex items-center gap-2 px-6 py-3 rounded-xl sol-gradient-bg text-black font-bold text-lg hover:opacity-90 transition-all">
                 浏览 DNA 市场 →
               </button>
-              <div className="flex items-center gap-2 px-5 py-3 rounded-xl border border-sol-border glass-card font-mono text-sm text-slate-300">
-                <span className="text-sol-green">$</span> dnacloud init
+              <div className="flex flex-col gap-1.5 px-5 py-3 rounded-xl border border-sol-border glass-card font-mono text-xs text-slate-300">
+                <div><span className="text-sol-green">$</span> npm install -g soldnacloud</div>
+                <div><span className="text-sol-green">$</span> dnacloud init</div>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-lg mx-auto">
@@ -520,7 +521,17 @@ function MarketplacePage() {
 
                 {/* Step 1 */}
                 <div>
-                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 1 · 初始化 DNAcloud（首次使用）</div>
+                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 1 · 安装 DNAcloud CLI（首次使用）</div>
+                  <div className="flex items-center gap-2 bg-black/40 rounded-xl border border-sol-border px-4 py-2.5 font-mono text-xs">
+                    <span className="text-sol-green">$</span>
+                    <span className="flex-1 text-white">npm install -g soldnacloud</span>
+                    <CopyBtn text="npm install -g soldnacloud" />
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div>
+                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 2 · 在 Claude Code 项目中初始化</div>
                   <div className="flex items-center gap-2 bg-black/40 rounded-xl border border-sol-border px-4 py-2.5 font-mono text-xs">
                     <span className="text-sol-green">$</span>
                     <span className="flex-1 text-white">dnacloud init</span>
@@ -528,9 +539,9 @@ function MarketplacePage() {
                   </div>
                 </div>
 
-                {/* Step 2 */}
+                {/* Step 3 */}
                 <div>
-                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 2 · 对 Claude Code 说</div>
+                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 3 · 对 Claude Code 说</div>
                   <div className="bg-black/40 rounded-xl border border-sol-border p-3 space-y-1.5 text-xs font-mono">
                     <div className="text-slate-500"># 自然语言触发（推荐）</div>
                     <div className="flex items-center gap-2">
@@ -545,9 +556,9 @@ function MarketplacePage() {
                   </div>
                 </div>
 
-                {/* Step 3 — what happens */}
+                {/* Step 4 — what happens */}
                 <div>
-                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 3 · Agent 自动完成以下流程</div>
+                  <div className="text-xs text-slate-500 font-mono mb-2">步骤 4 · Agent 自动完成以下流程</div>
                   <div className="space-y-2">
                     {[
                       ['🔍','搜索并确认包信息','自动展示 capabilities、价格、安全评分'],

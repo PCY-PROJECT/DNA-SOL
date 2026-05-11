@@ -361,16 +361,23 @@ export default function MarketplacePage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sol-green">
                       <CheckCircle2 size={18} />
-                      <span className="font-semibold text-sm">支付已验证！运行以下命令安装：</span>
+                      <span className="font-semibold text-sm">支付已验证！按步骤完成安装：</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-black/40 rounded-lg border border-sol-green/20 p-3">
-                      <code className="flex-1 text-xs font-mono text-sol-green terminal-line">{installCmd}</code>
-                      <button
-                        onClick={() => handleCopy(installCmd)}
-                        className="shrink-0 p-1.5 hover:bg-white/5 rounded transition-colors"
-                      >
-                        {copied ? <Check size={13} className="text-sol-green" /> : <Copy size={13} className="text-slate-400" />}
-                      </button>
+                    <div className="space-y-2 text-xs font-mono">
+                      <div className="text-slate-500">① 首次使用先安装 CLI</div>
+                      <div className="flex items-center gap-2 bg-black/40 rounded-lg border border-sol-border p-2.5">
+                        <code className="flex-1 text-slate-300">npm install -g soldnacloud</code>
+                        <button onClick={() => handleCopy('npm install -g soldnacloud')} className="shrink-0 p-1 hover:bg-white/5 rounded">
+                          {copied ? <Check size={12} className="text-sol-green" /> : <Copy size={12} className="text-slate-400" />}
+                        </button>
+                      </div>
+                      <div className="text-slate-500">② 在 Claude Code 项目中运行</div>
+                      <div className="flex items-center gap-2 bg-black/40 rounded-lg border border-sol-green/20 p-2.5">
+                        <code className="flex-1 text-sol-green terminal-line">{installCmd}</code>
+                        <button onClick={() => handleCopy(installCmd)} className="shrink-0 p-1 hover:bg-white/5 rounded">
+                          {copied ? <Check size={12} className="text-sol-green" /> : <Copy size={12} className="text-slate-400" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

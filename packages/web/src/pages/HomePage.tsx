@@ -101,9 +101,15 @@ export default function HomePage({ setPage }: Props) {
                 浏览 DNA 市场
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <div className="flex items-center gap-2 px-6 py-3 rounded-xl border border-sol-border bg-sol-card font-mono text-sm text-slate-300">
-                <Terminal size={14} className="text-sol-green" />
-                <span className="terminal-line">dnacloud init</span>
+              <div className="flex flex-col gap-1 px-5 py-3 rounded-xl border border-sol-border bg-sol-card font-mono text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Terminal size={12} className="text-sol-green shrink-0" />
+                  <span className="terminal-line">npm install -g soldnacloud</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Terminal size={12} className="text-sol-green shrink-0" />
+                  <span className="terminal-line">dnacloud init</span>
+                </div>
               </div>
             </div>
 

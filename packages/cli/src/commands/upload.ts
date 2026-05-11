@@ -54,7 +54,7 @@ export async function uploadCommand(packagePath: string, options: UploadOptions)
       const err = await res.text();
       spin.fail(`创建上传会话失败: ${res.status} ${err}`);
       if (res.status === 405) {
-        console.log(chalk.yellow('  提示：URL 路径可能缺少 /api，完整地址示例：https://finderfund.cn/dna/api'));
+        console.log(chalk.yellow('  提示：URL 路径可能缺少 /api，完整地址示例：https://finderfund.cn/solDna/api'));
       }
       process.exit(1);
     }
