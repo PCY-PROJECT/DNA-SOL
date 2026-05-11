@@ -1,6 +1,6 @@
 {
   "name": "soldnacloud",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "type": "module",
   "description": "DNAcloud CLI — install expert DNA capabilities into Claude Code",
   "bin": {
@@ -19,8 +19,8 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@soldnacloud/schema": "workspace:*",
-    "@soldnacloud/validator": "workspace:*",
+    "@soldnacloud/schema": "^1.0.1",
+    "@soldnacloud/validator": "^0.6.1",
     "adm-zip": "^0.5.16",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
