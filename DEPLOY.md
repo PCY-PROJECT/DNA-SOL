@@ -18,8 +18,8 @@
   [ ] 6. 上传 Trading Master DNA 到 marketplace
 
 前端 CLI 发布
-  [ ] 7. 发布 @dnacloud/mcp-server 到 npm
-  [ ] 8. 发布 @dnacloud/cli 到 npm
+  [ ] 7. 发布 @soldnacloud/mcp-server 到 npm
+  [ ] 8. 发布 soldnacloud (CLI) 到 npm
 
 验收测试
   [ ] 9. 服务端接口冒烟测试
@@ -50,8 +50,8 @@ ls -lh server/target/dnacloud-server-1.0.0-SNAPSHOT.jar
 ```bash
 SERVER=root@163.7.3.34
 
-scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/dnacloud/dnacloud-server.jar
-scp .env $SERVER:/opt/dnacloud/.env
+scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/soldna/dnacloud-server.jar
+scp .env $SERVER:/opt/soldna/.env
 scp scripts/deploy.sh $SERVER:/tmp/deploy.sh
 ```
 
@@ -59,36 +59,36 @@ scp scripts/deploy.sh $SERVER:/tmp/deploy.sh
 
 ```bash
 # 创建运行用户和目录
-useradd -r -s /bin/false dnacloud 2>/dev/null || true
-mkdir -p /opt/dnacloud/{artifacts,logs,data}
-chown -R dnacloud:dnacloud /opt/dnacloud
+useradd -r -s /bin/false soldna 2>/dev/null || true
+mkdir -p /opt/soldna/{artifacts,logs,data}
+chown -R soldna:soldna /opt/soldna
 
 # 安装 JDK 17（Ubuntu）
 apt-get update && apt-get install -y openjdk-17-jre-headless
 
 # 创建 systemd service
-cat > /etc/systemd/system/dnacloud.service << 'EOF'
+cat > /etc/systemd/system/solDna.service << 'EOF'
 [Unit]
 Description=DNAcloud Marketplace Server
 After=network.target
 
 [Service]
-User=dnacloud
-WorkingDirectory=/opt/dnacloud
-EnvironmentFile=/opt/dnacloud/.env
-ExecStart=/usr/bin/java -Xmx512m -jar /opt/dnacloud/dnacloud-server.jar
+User=soldna
+WorkingDirectory=/opt/soldna
+EnvironmentFile=/opt/soldna/.env
+ExecStart=/usr/bin/java -Xmx512m -jar /opt/soldna/dnacloud-server.jar
 Restart=always
 RestartSec=10
-StandardOutput=append:/opt/dnacloud/logs/app.log
-StandardError=append:/opt/dnacloud/logs/app.log
+StandardOutput=append:/opt/soldna/logs/app.log
+StandardError=append:/opt/soldna/logs/app.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable dnacloud
-systemctl start dnacloud
+systemctl enable solDna
+systemctl start solDna
 
 # 检查是否启动成功
 sleep 5 && curl -s http://localhost:8093/actuator/health
@@ -97,15 +97,15 @@ sleep 5 && curl -s http://localhost:8093/actuator/health
 ### 2.3 后续更新（只需两步）
 
 ```bash
-scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/dnacloud/dnacloud-server.jar
-ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8093/actuator/health"
+scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/soldna/dnacloud-server.jar
+ssh $SERVER "systemctl restart solDna && sleep 3 && curl -s http://localhost:8093/actuator/health"
 ```
 
 ---
 
 ## 三、配置 .env（填写真实值）
 
-服务器上编辑 `/opt/dnacloud/.env`，以下是**完整的生产配置**：
+服务器上编辑 `/opt/soldna/.env`，以下是**完整的生产配置**：
 
 ```bash
 # ─── 服务基础 ─────────────────────────────────────────────────────
@@ -115,12 +115,12 @@ DNACLOUD_BASE_URL=https://finderfund.cn/dna
 
 # ─── 数据库（绝对路径，避免与同服务器其他项目冲突）─────────────
 # H2 file 模式只允许一个进程持有锁，必须用绝对路径隔离
-DB_URL=jdbc:h2:file:/opt/dnacloud/data/dnacloud;DB_CLOSE_ON_EXIT=FALSE
+DB_URL=jdbc:h2:file:/opt/soldna/data/solDna;DB_CLOSE_ON_EXIT=FALSE
 DB_USERNAME=sa
 DB_PASSWORD=
 
 # ─── Artifact 存储 ────────────────────────────────────────────────
-DNACLOUD_ARTIFACT_STORE=/opt/dnacloud/artifacts
+DNACLOUD_ARTIFACT_STORE=/opt/soldna/artifacts
 
 # ─── Solana 网络配置 ──────────────────────────────────────────────
 # 生产环境使用 mainnet；开发/测试使用 devnet
@@ -150,7 +150,7 @@ DNACLOUD_MINIMUM_PAYOUT=10000
 修改 `.env` 后重启：
 
 ```bash
-systemctl restart dnacloud
+systemctl restart solDna
 ```
 
 ---
@@ -178,34 +178,28 @@ apt-get install -y nginx certbot python3-certbot-nginx
 ### 5.2 配置反向代理
 
 ```bash
-cat > /etc/nginx/sites-available/dnacloud << 'EOF'
-server {
-    listen 80;
-    server_name finderfund.cn;
-    return 301 https://$host$request_uri;
-}
+## ⚠️ 同服务器多项目部署说明
+## finderfund.cn 已有其他项目在运行，不要覆盖整个 server {} 块。
+## 只需在现有 finderfund.cn 的 443 server 块中追加下面的 location /dna/ 段。
 
-server {
-    listen 443 ssl;
-    server_name finderfund.cn;
+# 在现有 nginx 配置文件（通常 /etc/nginx/sites-available/finderfund.cn）中追加：
+cat >> /etc/nginx/sites-available/finderfund.cn << 'EOF'
 
-    ssl_certificate     /etc/letsencrypt/live/finderfund.cn/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/finderfund.cn/privkey.pem;
-
-    client_max_body_size 60M;
-
-    location / {
-        proxy_pass         http://127.0.0.1:8093;
+    # ── DNAcloud SOL Marketplace ────────────────────────────────
+    # 路径 /dna/ 独占转发给 DNA-SOL 服务（8093 端口）
+    # 前缀 /dna 会被去掉：/dna/v1/dna/search → /v1/dna/search
+    location /dna/ {
+        proxy_pass         http://127.0.0.1:8093/;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
+        client_max_body_size 60M;
     }
-}
+    # ────────────────────────────────────────────────────────────
 EOF
 
-ln -sf /etc/nginx/sites-available/dnacloud /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
@@ -274,27 +268,25 @@ pnpm -r build
 # 构建顺序：schema → validator → mcp-server → cli
 ```
 
-### 7.2 发布 @dnacloud/mcp-server
+### 7.2 发布 @soldnacloud/mcp-server
 
 ```bash
 cd packages/mcp-server
 npm publish --access public
 ```
 
-### 7.3 发布 @dnacloud/cli
+### 7.3 发布 soldnacloud (CLI)
 
 ```bash
 cd packages/cli
-# 确认 package.json 里 version 和默认 marketplace URL 正确
 npm publish --access public
 ```
 
 发布后，用户可以：
 
 ```bash
-npm install -g @dnacloud/cli
-# 或
-npx @dnacloud/cli init
+npm install -g soldnacloud
+dnacloud init
 ```
 
 ---
@@ -414,19 +406,19 @@ onchainos wallet balance --chain solana
 
 ```bash
 # 查看服务状态
-systemctl status dnacloud
+systemctl status solDna
 
 # 实时日志
-journalctl -u dnacloud -f
+journalctl -u solDna -f
 # 或
-tail -f /opt/dnacloud/logs/app.log
+tail -f /opt/soldna/logs/app.log
 
 # 重启（修改 .env 后必须执行）
-systemctl restart dnacloud
+systemctl restart solDna
 
 # 更新 jar
-scp dnacloud-server-*.jar root@163.7.3.34:/opt/dnacloud/dnacloud-server.jar
-ssh root@163.7.3.34 "systemctl restart dnacloud"
+scp dnacloud-server-*.jar root@163.7.3.34:/opt/soldna/dnacloud-server.jar
+ssh root@163.7.3.34 "systemctl restart solDna"
 
 # 手动触发 payout（结算创作者收益）
 curl -X POST https://finderfund.cn/dna/v1/creator/admin/payouts/run-once \

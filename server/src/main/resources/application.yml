@@ -7,7 +7,7 @@ spring:
   application:
     name: dnacloud-server
   datasource:
-    url: ${DB_URL:jdbc:h2:file:./data/dnacloud;DB_CLOSE_ON_EXIT=FALSE}
+    url: ${DB_URL:jdbc:h2:file:./data/solDna;DB_CLOSE_ON_EXIT=FALSE}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
