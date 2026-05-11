@@ -1,6 +1,6 @@
 {
   "name": "@soldnacloud/validator",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@soldnacloud/schema": "workspace:*",
+    "@soldnacloud/schema": "^1.0.1",
     "semver": "^7.6.0"
   },
   "devDependencies": {
