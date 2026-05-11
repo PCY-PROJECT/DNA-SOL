@@ -91,14 +91,14 @@ systemctl enable dnacloud
 systemctl start dnacloud
 
 # 检查是否启动成功
-sleep 5 && curl -s http://localhost:8089/actuator/health
+sleep 5 && curl -s http://localhost:8093/actuator/health
 ```
 
 ### 2.3 后续更新（只需两步）
 
 ```bash
 scp server/target/dnacloud-server-1.0.0-SNAPSHOT.jar $SERVER:/opt/dnacloud/dnacloud-server.jar
-ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8089/actuator/health"
+ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8093/actuator/health"
 ```
 
 ---
@@ -109,9 +109,15 @@ ssh $SERVER "systemctl restart dnacloud && sleep 3 && curl -s http://localhost:8
 
 ```bash
 # ─── 服务基础 ─────────────────────────────────────────────────────
-SERVER_PORT=8089
+SERVER_PORT=8093
 # 公网地址，用于拼接 artifact 下载链接（必须与实际访问地址一致）
 DNACLOUD_BASE_URL=https://finderfund.cn/dna
+
+# ─── 数据库（绝对路径，避免与同服务器其他项目冲突）─────────────
+# H2 file 模式只允许一个进程持有锁，必须用绝对路径隔离
+DB_URL=jdbc:h2:file:/opt/dnacloud/data/dnacloud;DB_CLOSE_ON_EXIT=FALSE
+DB_USERNAME=sa
+DB_PASSWORD=
 
 # ─── Artifact 存储 ────────────────────────────────────────────────
 DNACLOUD_ARTIFACT_STORE=/opt/dnacloud/artifacts
@@ -156,8 +162,8 @@ systemctl restart dnacloud
 | 端口 | 协议 | 用途 |
 |------|------|------|
 | 80   | TCP  | HTTP（Nginx，重定向到 443） |
-| 443  | TCP  | HTTPS（Nginx 反代到 8089） |
-| 8089 | TCP  | 可选，直接暴露（不推荐生产使用） |
+| 443  | TCP  | HTTPS（Nginx 反代到 8093） |
+| 8093 | TCP  | 可选，直接暴露（不推荐生产使用） |
 
 ---
 
@@ -189,7 +195,7 @@ server {
     client_max_body_size 60M;
 
     location / {
-        proxy_pass         http://127.0.0.1:8089;
+        proxy_pass         http://127.0.0.1:8093;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
         proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -459,11 +465,11 @@ SOLANA_RPC_URL=https://api.mainnet-beta.solana.com \
 SOLANA_NETWORK=solana \
 SOLANA_USDC_MINT=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home \
-  java -jar server/target/dnacloud-server-1.0.0-SNAPSHOT.jar --server.port=18089
+  java -jar server/target/dnacloud-server-1.0.0-SNAPSHOT.jar --server.port=18093
 
 # 3. 健康检查
-curl -s http://localhost:18089/actuator/health
+curl -s http://localhost:18093/actuator/health
 
 # 4. 测试 402 响应
-curl -si http://localhost:18089/v1/dna/trading-master-dna/versions/1.0.0/artifact
+curl -si http://localhost:18093/v1/dna/trading-master-dna/versions/1.0.0/artifact
 ```
