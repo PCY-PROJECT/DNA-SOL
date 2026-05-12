@@ -1,12 +1,13 @@
 {
   "mcpServers": {
     "dnacloud-marketplace": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/Users/oker/Documents/黑客松/DNA/packages/mcp-server/dist/index.js"
+        "-y",
+        "@soldnacloud/mcp-server"
       ],
       "env": {
-        "DNACLOUD_MARKETPLACE_URL": "http://localhost:8080"
+        "DNACLOUD_MARKETPLACE_URL": "https://finderfund.cn/solDna"
       }
     },
     "market-data": {
